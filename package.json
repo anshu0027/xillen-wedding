@@ -1,0 +1,52 @@
+{
+  "name": "temp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "node --loader ts-node/esm backend/seedAdmin.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "@radix-ui/react-popover": "^1.1.14",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-toast": "^1.2.14",
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.1",
+    "lucide-react": "^0.511.0",
+    "next": "15.1.0",
+    "next-rate-limit": "^0.0.3",
+    "react": "^19.0.0",
+    "react-datepicker": "^8.4.0",
+    "react-day-picker": "^8.10.1",
+    "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.5.2",
+    "tailwind-merge": "^3.3.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.25.30"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^20",
+    "@types/nodemailer": "^6.4.17",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.0",
+    "nodemailer": "^7.0.3",
+    "postcss": "^8",
+    "prisma": "^6.8.2",
+    "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}

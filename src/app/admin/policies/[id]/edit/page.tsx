@@ -1,0 +1,225 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { toast } from "@/hooks/use-toast";
+
+import Step1Form from '@/components/quote/Step1Form';
+import Step2Form from '@/components/quote/Step2Form';
+import Step3Form from '@/components/quote/Step3Form';
+import Step4Form from '@/components/quote/Step4Form';
+
+function flattenPolicy(policy: any) {
+    return {
+        // Step 1
+        residentState: policy.residentState || policy.policyHolder?.state || '',
+        eventType: policy.event?.eventType || '',
+        eventDate: policy.event?.eventDate || '',
+        maxGuests: policy.event?.maxGuests || '',
+        coverageLevel: policy.coverageLevel ?? null,
+        liabilityCoverage: policy.liabilityCoverage ?? '',
+        liquorLiability: policy.liquorLiability ?? false,
+        covidDisclosure: policy.covidDisclosure ?? false,
+        specialActivities: policy.specialActivities ?? false,
+        // Step 2
+        honoree1FirstName: policy.event?.honoree1FirstName || '',
+        honoree1LastName: policy.event?.honoree1LastName || '',
+        honoree2FirstName: policy.event?.honoree2FirstName || '',
+        honoree2LastName: policy.event?.honoree2LastName || '',
+        ceremonyLocationType: policy.event?.ceremonyLocationType || '',
+        indoorOutdoor: policy.event?.indoorOutdoor || '',
+        venueName: policy.event?.venue?.name || '',
+        venueAddress1: policy.event?.venue?.address1 || '',
+        venueAddress2: policy.event?.venue?.address2 || '',
+        venueCountry: policy.event?.venue?.country || '',
+        venueCity: policy.event?.venue?.city || '',
+        venueState: policy.event?.venue?.state || '',
+        venueZip: policy.event?.venue?.zip || '',
+        venueAsInsured: policy.event?.venue?.venueAsInsured || false,
+        // Step 3
+        firstName: policy.policyHolder?.firstName || '',
+        lastName: policy.policyHolder?.lastName || '',
+        email: policy.policyHolder?.email || '',
+        confirmEmail: policy.policyHolder?.confirmEmail || '',
+        additionalEmail: policy.policyHolder?.additionalEmail || '',
+        phone: policy.policyHolder?.phone || '',
+        relationship: policy.policyHolder?.relationship || '',
+        hearAboutUs: policy.policyHolder?.hearAboutUs || '',
+        address: policy.policyHolder?.address || '',
+        country: policy.policyHolder?.country || '',
+        city: policy.policyHolder?.city || '',
+        state: policy.policyHolder?.state || '',
+        zip: policy.policyHolder?.zip || '',
+        legalNotices: policy.policyHolder?.legalNotices || false,
+        completingFormName: policy.policyHolder?.completingFormName || '',
+        // Other fields
+        quoteNumber: policy.quoteNumber,
+        totalPremium: policy.totalPremium,
+        basePremium: policy.basePremium,
+        liabilityPremium: policy.liabilityPremium,
+        liquorLiabilityPremium: policy.liquorLiabilityPremium,
+        status: policy.status,
+    };
+}
+
+export default function EditPolicy() {
+    const router = useRouter();
+    const params = useParams();
+    const id = params.id as string;
+    const [step, setStep] = useState(1);
+    const [formState, setFormState] = useState<any>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [emailSent, setEmailSent] = useState(false);
+    const [showQuoteResults, setShowQuoteResults] = useState(false);
+    useEffect(() => {
+        async function fetchPolicy() {
+            const res = await fetch(`/api/quote/step?quoteNumber=${id}`);
+            if (res.ok) {
+                const data = await res.json();
+                setFormState(flattenPolicy(data.quote));
+            }
+        }
+        fetchPolicy();
+    }, [id]);
+    useEffect(() => {
+        // REMOVE admin auth check, allow access to all
+    }, []);
+    if (!formState) return <div>Loading...</div>;
+    const handleInputChange = (field: string, value: any) => {
+        setFormState((prev: any) => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
+    };
+    // Validation functions for each step (implement as needed)
+    const validateStep1 = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formState.residentState) newErrors.residentState = 'Required';
+        if (!formState.eventType) newErrors.eventType = 'Required';
+        if (!formState.maxGuests) newErrors.maxGuests = 'Required';
+        if (!formState.eventDate) newErrors.eventDate = 'Required';
+        if (!formState.coverageLevel) newErrors.coverageLevel = 'Required';
+        if (!formState.covidDisclosure) newErrors.covidDisclosure = 'Required';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+    const validateStep2 = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formState.honoree1FirstName) newErrors.honoree1FirstName = 'Required';
+        if (!formState.honoree1LastName) newErrors.honoree1LastName = 'Required';
+        if (!formState.ceremonyLocationType) newErrors.ceremonyLocationType = 'Required';
+        if (!formState.indoorOutdoor) newErrors.indoorOutdoor = 'Required';
+        if (!formState.venueName) newErrors.venueName = 'Required';
+        if (!formState.venueAddress1) newErrors.venueAddress1 = 'Required';
+        if (!formState.venueCountry) newErrors.venueCountry = 'Required';
+        if (!formState.venueCity) newErrors.venueCity = 'Required';
+        if (!formState.venueState) newErrors.venueState = 'Required';
+        if (!formState.venueZip) newErrors.venueZip = 'Required';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+    const validateStep3 = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formState.firstName) newErrors.firstName = 'Required';
+        if (!formState.lastName) newErrors.lastName = 'Required';
+        if (!formState.email) newErrors.email = 'Required';
+        if (!formState.confirmEmail) newErrors.confirmEmail = 'Required';
+        if (formState.email !== formState.confirmEmail) newErrors.confirmEmail = 'Emails do not match';
+        if (!formState.phone) newErrors.phone = 'Required';
+        if (!formState.relationship) newErrors.relationship = 'Required';
+        if (!formState.address) newErrors.address = 'Required';
+        if (!formState.city) newErrors.city = 'Required';
+        if (!formState.state) newErrors.state = 'Required';
+        if (!formState.zip) newErrors.zip = 'Required';
+        if (!formState.legalNotices) newErrors.legalNotices = 'Required';
+        if (!formState.completingFormName) newErrors.completingFormName = 'Required';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+    // Save handler for all steps
+    const handleSave = async () => {
+        try {
+            const payload = {
+                ...formState,
+                quoteNumber: formState.quoteNumber,
+                policyId: formState.policyId || id,
+            };
+            const response = await fetch("/api/policy", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update policy');
+            }
+            // Re-fetch updated policy and update UI
+            const updated = await fetch(`/api/quote/step?quoteNumber=${formState.quoteNumber}`);
+            if (updated.ok) {
+                const data = await updated.json();
+                setFormState(flattenPolicy(data.quote));
+            }
+            toast({ title: "Policy updated successfully!", description: "", variant: "default" });
+        } catch (error) {
+            toast({ title: "Failed to update policy: " + (error instanceof Error ? error.message : 'Unknown error'), description: "", variant: "destructive" });
+        }
+    };
+    // Stepper UI
+    return (
+        <div className="p-6">
+            <div className="flex items-center mb-6">
+                <Button variant="outline" size="sm" onClick={() => router.push('/admin/policies')}>Back to Policies</Button>
+                <h1 className="text-2xl font-bold text-gray-900 ml-4">Edit Policy</h1>
+            </div>
+            <div className="mb-8 flex gap-4">
+                {[1, 2, 3, 4].map(s => (
+                    <Button key={s} variant={step === s ? 'primary' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
+                ))}
+            </div>
+            {step === 1 && (
+                <Step1Form
+                    state={formState}
+                    errors={errors}
+                    onChange={handleInputChange}
+                    onValidate={validateStep1}
+                    onContinue={() => setStep(2)}
+                    showQuoteResults={showQuoteResults}
+                    handleCalculateQuote={() => setShowQuoteResults(true)}
+                    onSave={handleSave}
+                />
+            )}
+            {step === 2 && (
+                <Step2Form
+                    state={formState}
+                    errors={errors}
+                    onChange={handleInputChange}
+                    onValidate={validateStep2}
+                    onContinue={() => setStep(3)}
+                    onSave={handleSave}
+                />
+            )}
+            {step === 3 && (
+                <Step3Form
+                    state={formState}
+                    errors={errors}
+                    onChange={handleInputChange}
+                    onValidate={validateStep3}
+                    onContinue={() => setStep(4)}
+                    onSave={handleSave}
+                />
+            )}
+            {step === 4 && (
+                <Step4Form
+                    state={formState}
+                    onSave={handleSave}
+                    onBack={() => setStep(3)}
+                    emailSent={emailSent}
+                    onEmail={() => setEmailSent(true)}
+                />
+            )}
+        </div>
+    );
+} 

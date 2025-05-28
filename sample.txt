@@ -1,0 +1,39 @@
+1. Email Field Addition
+- Add email field to quote generator form (Step 1)
+- Update database schema to include email field
+- Add email validation
+- Update backend API to handle email field
+
+ 2. Email Notification System
+- Create SMTP email service using environment variables:
+  - SMTP_EMAIL
+  - SMTP_PASS
+- Implement email sending functionality for:
+  - Quote calculations
+  - Admin panel quote notifications
+  - Policy confirmations
+
+ 3. Quote Management
+- Implement progressive quote saving:
+  - Save quote data after each form step
+  - Use single quote ID throughout the process
+  - Update existing quote instead of creating new ones
+  - Only create policy after successful payment
+
+ 4. Database Updates
+- Remove email-related fields from:
+  - Policy holder form
+  - Event information form
+  - Step 2 and 3 forms
+- Update schema.prisma accordingly
+
+ 5. Admin Access
+- Remove security restrictions preventing access to create-quote
+- Ensure admin can access quote creation without redirection
+
+ Implementation Notes
+- Use quote ID for tracking throughout the process
+- Implement proper error handling for email sending
+- Add loading states during quote calculations
+- Ensure data persistence between form steps
+- Add proper validation for email format

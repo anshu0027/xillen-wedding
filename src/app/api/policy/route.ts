@@ -177,29 +177,12 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // Create new quote and policy
-      let newQuoteNumber = fields.quoteNumber || "";
-      if (!newQuoteNumber.startsWith("POC-")) {
-        newQuoteNumber = `POC-${newQuoteNumber.replace(/^POC-/, "")}`;
-      }
-      const newQuote = await prisma.quote.create({
-        data: {
-          ...quoteFields,
-          quoteNumber: newQuoteNumber,
-          event: { create: { ...eventFields, venue: { create: venueFields } } },
-          policyHolder: { create: policyHolderFields },
-        },
-        include: { event: { include: { venue: true } }, policyHolder: true },
-      });
+      // Create direct/autoconverted policy (no quoteId)
       policy = await prisma.policy.create({
-        data: { quoteId: newQuote.id },
-        include: {
-          quote: {
-            include: {
-              event: { include: { venue: true } },
-              policyHolder: true,
-            },
-          },
+        data: {
+          policyNumber: fields.policyNumber, // or generate as needed
+          pdfUrl: fields.pdfUrl,
+          // Do not set quoteId
         },
       });
     }
@@ -217,64 +200,95 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
     const { policyId, quoteNumber, ...fields } = body;
+    if (!policyId || isNaN(Number(policyId))) {
+      return NextResponse.json(
+        { error: "Missing or invalid policyId" },
+        { status: 400 }
+      );
+    }
     let policy;
     let updatedPolicy;
     if (policyId) {
-      policy = await prisma.policy.findUnique({
+      // Fetch the policy to check if it has a quote
+      const policyRecord = await prisma.policy.findUnique({
         where: { id: Number(policyId) },
         include: { quote: true },
       });
-      if (!policy) {
+      if (!policyRecord) {
         return NextResponse.json(
           { error: "Policy not found" },
           { status: 404 }
         );
       }
-      if (policy.quote) {
-        // Update quote and nested models
-        await prisma.quote.update({
-          where: { id: policy.quote.id },
+      if (!policyRecord.quote) {
+        // Direct policy: update only direct fields
+        updatedPolicy = await prisma.policy.update({
+          where: { id: Number(policyId) },
           data: {
-            ...quoteFields,
-            event: {
-              upsert: {
-                update: {
-                  ...eventFields,
-                  venue: {
-                    upsert: { update: venueFields, create: venueFields },
-                  },
-                },
-                create: { ...eventFields, venue: { create: venueFields } },
-              },
-            },
-            policyHolder: {
-              upsert: {
-                update: policyHolderFields,
-                create: policyHolderFields,
-              },
-            },
+            policyNumber: fields.policyNumber,
+            pdfUrl: fields.pdfUrl,
+            // Add other direct policy fields as needed
           },
         });
-      }
-      // Always update the policy itself
-      await prisma.policy.update({
-        where: { id: Number(policyId) },
-        data: {
-          ...policyFields,
-        },
-      });
-      updatedPolicy = await prisma.policy.findUnique({
-        where: { id: Number(policyId) },
-        include: {
-          quote: {
-            include: {
-              event: { include: { venue: true } },
-              policyHolder: true,
+      } else {
+        // Policy with quote: update quote and nested models as before
+        await prisma.policy.update({
+          where: { id: Number(policyId) },
+          data: {},
+        });
+        // Fetch the updated policy (with quote and nested data)
+        updatedPolicy = await prisma.policy.findUnique({
+          where: { id: Number(policyId) },
+          include: {
+            quote: {
+              include: {
+                event: { include: { venue: true } },
+                policyHolder: true,
+              },
             },
+            payments: true,
           },
-          payments: true,
-        },
-      });
+        });
+        // If the policy has a quote, update the quote and nested models
+        if (updatedPolicy && updatedPolicy.quote) {
+          await prisma.quote.update({
+            where: { id: updatedPolicy.quote.id },
+            data: {
+              ...quoteFields,
+              event: {
+                upsert: {
+                  update: {
+                    ...eventFields,
+                    venue: {
+                      upsert: { update: venueFields, create: venueFields },
+                    },
+                  },
+                  create: { ...eventFields, venue: { create: venueFields } },
+                },
+              },
+              policyHolder: {
+                upsert: {
+                  update: policyHolderFields,
+                  create: policyHolderFields,
+                },
+              },
+            },
+          });
+          // Fetch the updated policy again to include updated quote
+          updatedPolicy = await prisma.policy.findUnique({
+            where: { id: Number(policyId) },
+            include: {
+              quote: {
+                include: {
+                  event: { include: { venue: true } },
+                  policyHolder: true,
+                },
+              },
+              payments: true,
+            },
+          });
+        }
+      }
     } else if (quoteNumber) {
       quote = await prisma.quote.findUnique({
         where: { quoteNumber },

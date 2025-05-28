@@ -19,13 +19,26 @@ export async function GET(req: NextRequest) {
       prisma.policy.count(),
     ]);
     // Flatten the data for the frontend and use the correct prefix (PCI/PAI)
-    const policiesWithQuote = policies.map((p) => ({
-      ...p.quote,
-      quoteNumber: p.quote.quoteNumber, // Already correct prefix from DB
-      policyId: p.id,
-      policyCreatedAt: p.createdAt,
-      pdfUrl: p.pdfUrl,
-    }));
+    const policiesWithQuote = policies.map((p) => {
+      if (p.quote) {
+        return {
+          ...p.quote,
+          quoteNumber: p.quote.quoteNumber, // Already correct prefix from DB
+          policyId: p.id,
+          policyCreatedAt: p.createdAt,
+          pdfUrl: p.pdfUrl,
+        };
+      } else {
+        // For direct policies with no quote
+        return {
+          policyId: p.id,
+          policyCreatedAt: p.createdAt,
+          pdfUrl: p.pdfUrl,
+          policyNumber: p.policyNumber,
+          // Add any other direct policy fields you want to show
+        };
+      }
+    });
     return NextResponse.json({ policies: policiesWithQuote, total });
   } catch (error) {
     console.error("GET /api/policy/list error:", error);
@@ -56,7 +69,9 @@ export async function DELETE(req: NextRequest) {
       },
     });
     if (!policy) {
-      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
+        return NextResponse.json(
+          { message: "Policy not found, nothing updated." },
+        );
     }
     // If the policy has no related quote, just delete the policy
     if (!policy.quote) {

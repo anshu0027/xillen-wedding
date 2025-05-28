@@ -51,10 +51,6 @@ export default function Policies() {
     const [statusFilter, setStatusFilter] = useState('');
 
     useEffect(() => {
-        // REMOVE admin auth check, allow access to all
-    }, []);
-
-    useEffect(() => {
         async function fetchPolicies() {
             setLoading(true);
             setError("");

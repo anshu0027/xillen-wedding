@@ -132,8 +132,8 @@ model PolicyHolder {
 model Policy {
   id           Int       @id @default(autoincrement())
   policyNumber String    @unique
-  quoteId      Int       @unique
-  quote        quote     @relation(fields: [quoteId], references: [id])
+  quoteId      Int?      @unique
+  quote        quote?    @relation(fields: [quoteId], references: [id])
   pdfUrl       String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

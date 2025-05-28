@@ -217,13 +217,17 @@ export async function POST(req: NextRequest) {
               },
             },
           },
+        });
+        // Always fetch the updated quote with all relations for response
+        savedQuote = await prisma.quote.findUnique({
+          where: { quoteNumber },
           include: {
             event: { include: { venue: true } },
             policyHolder: true,
+            policy: true,
           },
         });
-      }
-      else {
+      } else {
         // Create new quote with existing number
         savedQuote = await prisma.quote.create({
           data: {
@@ -237,9 +241,14 @@ export async function POST(req: NextRequest) {
             },
             policyHolder: { create: policyHolderFields },
           },
+        });
+        // Always fetch the updated quote with all relations for response
+        savedQuote = await prisma.quote.findUnique({
+          where: { quoteNumber },
           include: {
             event: { include: { venue: true } },
             policyHolder: true,
+            policy: true,
           },
         });
       }

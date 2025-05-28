@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/hooks/use-toast";
+import dynamic from 'next/dynamic';
 
-import Step1Form from '@/components/quote/Step1Form';
-import Step2Form from '@/components/quote/Step2Form';
-import Step3Form from '@/components/quote/Step3Form';
-import Step4Form from '@/components/quote/Step4Form';
+const Step1Form = dynamic(() => import('@/components/quote/Step1Form'), { ssr: false });
+const Step2Form = dynamic(() => import('@/components/quote/Step2Form'), { ssr: false });
+const Step3Form = dynamic(() => import('@/components/quote/Step3Form'), { ssr: false });
+const Step4Form = dynamic(() => import('@/components/quote/Step4Form'), { ssr: false });
 
 function flattenPolicy(policy: any) {
     return {
@@ -16,6 +17,7 @@ function flattenPolicy(policy: any) {
         eventType: policy.event?.eventType || '',
         eventDate: policy.event?.eventDate || '',
         maxGuests: policy.event?.maxGuests || '',
+        email: policy.policyHolder?.email || '',
         coverageLevel: policy.coverageLevel ?? null,
         liabilityCoverage: policy.liabilityCoverage ?? '',
         liquorLiability: policy.liquorLiability ?? false,
@@ -39,9 +41,6 @@ function flattenPolicy(policy: any) {
         // Step 3
         firstName: policy.policyHolder?.firstName || '',
         lastName: policy.policyHolder?.lastName || '',
-        email: policy.policyHolder?.email || '',
-        confirmEmail: policy.policyHolder?.confirmEmail || '',
-        additionalEmail: policy.policyHolder?.additionalEmail || '',
         phone: policy.policyHolder?.phone || '',
         relationship: policy.policyHolder?.relationship || '',
         hearAboutUs: policy.policyHolder?.hearAboutUs || '',
@@ -59,6 +58,9 @@ function flattenPolicy(policy: any) {
         liabilityPremium: policy.liabilityPremium,
         liquorLiabilityPremium: policy.liquorLiabilityPremium,
         status: policy.status,
+        policyId: policy.policyId || policy.id,
+        policyNumber: policy.policyNumber,
+        pdfUrl: policy.pdfUrl,
     };
 }
 
@@ -73,10 +75,22 @@ export default function EditPolicy() {
     const [showQuoteResults, setShowQuoteResults] = useState(false);
     useEffect(() => {
         async function fetchPolicy() {
-            const res = await fetch(`/api/quote/step?quoteNumber=${id}`);
+            // Try to fetch by quoteNumber first
+            let res = await fetch(`/api/quote/step?quoteNumber=${id}`);
             if (res.ok) {
                 const data = await res.json();
-                setFormState(flattenPolicy(data.quote));
+                if (data.quote) {
+                    setFormState(flattenPolicy(data.quote));
+                    return;
+                }
+            }
+            // If not found, try to fetch by policy id (for direct policies)
+            res = await fetch(`/api/policy?id=${id}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.policy) {
+                    setFormState(flattenPolicy(data.policy));
+                }
             }
         }
         fetchPolicy();
@@ -157,10 +171,19 @@ export default function EditPolicy() {
                 throw new Error('Failed to update policy');
             }
             // Re-fetch updated policy and update UI
-            const updated = await fetch(`/api/quote/step?quoteNumber=${formState.quoteNumber}`);
-            if (updated.ok) {
-                const data = await updated.json();
-                setFormState(flattenPolicy(data.quote));
+            let updated;
+            if (formState.quoteNumber) {
+                updated = await fetch(`/api/quote/step?quoteNumber=${formState.quoteNumber}`);
+                if (updated.ok) {
+                    const data = await updated.json();
+                    setFormState(flattenPolicy(data.quote));
+                }
+            } else {
+                updated = await fetch(`/api/policy?id=${formState.policyId || id}`);
+                if (updated.ok) {
+                    const data = await updated.json();
+                    setFormState(flattenPolicy(data.policy));
+                }
             }
             toast({ title: "Policy updated successfully!", description: "", variant: "default" });
         } catch (error) {

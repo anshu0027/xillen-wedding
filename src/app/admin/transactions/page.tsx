@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, DollarSign, TrendingUp, Calendar, Filter } from "lucide-react";
 import Card from "@/components/ui/Card";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
 import Select from "@/components/ui/Select";
 
-export default function Transactions() {
+const Transactions = () => {
     const router = useRouter();
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
@@ -276,5 +276,13 @@ export default function Transactions() {
                 </div>
             </Card>
         </div>
+    );
+};
+
+export default function TransactionsPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <Transactions />
+        </Suspense>
     );
 } 

@@ -469,7 +469,7 @@ export default function Review() {
                                     >
                                         <div className="py-10 text-center">
                                             <p className="text-gray-700 mb-4">
-                                                For this demonstration, we've simplified the payment process.
+                                                For this demonstration, we&apos;ve simplified the payment process.
                                                 Click the button below to simulate payment and complete your policy purchase.
                                             </p>
                                             <Button

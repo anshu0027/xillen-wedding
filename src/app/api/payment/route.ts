@@ -23,7 +23,17 @@ export async function GET(req: NextRequest) {
       include: { policy: { include: { quote: true } } },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json({ payments });
+    // Map status values for frontend compatibility
+    const mappedPayments = payments.map((payment) => ({
+      ...payment,
+      status:
+        payment.status === "SUCCESS"
+          ? "Completed"
+          : payment.status === "FAILED"
+          ? "Failed"
+          : payment.status,
+    }));
+    return NextResponse.json({ payments: mappedPayments });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch payments" },

@@ -17,7 +17,16 @@ export async function GET(req: NextRequest) {
           { error: "Payment not found" },
           { status: 404 }
         );
-      return NextResponse.json({ payment });
+      const mappedPayment = {
+        ...payment,
+        status:
+          payment.status === "SUCCESS"
+            ? "Completed"
+            : payment.status === "FAILED"
+            ? "Failed"
+            : payment.status,
+      };
+      return NextResponse.json({ payment: mappedPayment });
     }
     const payments = await prisma.payment.findMany({
       include: { policy: { include: { quote: true } } },

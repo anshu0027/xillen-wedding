@@ -58,6 +58,16 @@ export async function DELETE(req: NextRequest) {
     if (!policy) {
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
+    // If the policy has no related quote, just delete the policy
+    if (!policy.quote) {
+      const deleted = await prisma.policy.delete({
+        where: { id: Number(policyId) },
+      });
+      return NextResponse.json({
+        message: "Policy deleted (no related quote)",
+        deleted,
+      });
+    }
     // Always delete the policy itself first to avoid foreign key constraint errors
     const deleted = await prisma.policy.delete({
       where: { id: Number(policyId) },

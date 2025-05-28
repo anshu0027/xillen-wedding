@@ -13,13 +13,14 @@ export default function Transactions() {
     const [endDate, setEndDate] = useState<Date | null>(null);
     const [timeFrame, setTimeFrame] = useState('30days');
     const [showFilters, setShowFilters] = useState(false);
-    const [transactions, setTransactions] = useState([]);
+    const [transactions, setTransactions] = useState<Array<{ id: string; createdAt: string; amount: number; status: string; method: string; policy: { quote: { quoteNumber: string; firstName: string; lastName: string; } } }>>([]);
 
     useEffect(() => {
         async function fetchTransactions() {
             const res = await fetch("/api/payment", { method: "GET" });
             if (res.ok) {
                 const data = await res.json();
+                console.log("Fetched transactions:", data.payments);
                 setTransactions(data.payments || []);
             }
         }
@@ -44,8 +45,7 @@ export default function Transactions() {
 
     // Calculate summary metrics
     const totalSales = filteredTransactions
-        .filter(t => t.status === 'Completed')
-        .reduce((sum, transaction) => sum + transaction.amount, 0);
+        .reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
     const successfulTransactions = filteredTransactions.filter(t => t.status === 'Completed').length;
     const failedTransactions = filteredTransactions.filter(t => t.status === 'Failed').length;
     const conversionRate = ((successfulTransactions / (successfulTransactions + failedTransactions || 1)) * 100).toFixed(1);
@@ -257,16 +257,16 @@ export default function Transactions() {
                             {filteredTransactions.map((transaction) => (
                                 <tr key={transaction.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">{transaction.id}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{transaction.policy.quote.quoteNumber}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{`${transaction.policy.quote.firstName} ${transaction.policy.quote.lastName}`}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{new Date(transaction.createdAt).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">${transaction.amount}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{transaction.method}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{transaction.policy?.quote?.quoteNumber || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{`${transaction.policy?.quote?.firstName || ''} ${transaction.policy?.quote?.lastName || ''}`.trim() || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString() : '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">${transaction.amount ?? '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{transaction.method || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                            transaction.status === 'Failed' ? 'bg-red-100 text-red-800' : ''
+                                            transaction.status === 'Failed' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                                             }`}>
-                                            {transaction.status}
+                                            {transaction.status || '-'}
                                         </span>
                                     </td>
                                 </tr>

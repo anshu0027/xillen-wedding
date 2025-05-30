@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import DatePicker from "@/components/ui/DatePicker";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toast } from "@/hooks/use-toast";
 
 // Add QuoteList type for type safety
@@ -263,6 +265,66 @@ export default function Quotes() {
             toast({ title: "Failed to delete quote.", variant: "destructive" });
         }
     };
+    const handleExportPDF = () => {
+        if (filteredForExport.length === 0) {
+            toast({
+                title: "No Data",
+                description: "No quotes available to export.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        const doc = new jsPDF();
+        const tableHeaders = ["Quote ID", "Customer", "Event Type", "Event Date", "Premium", "Status", "Coverage"];
+
+        const allTableRows = filteredForExport.map(quote => [
+            String(quote.quoteNumber || quote.id || 'N/A'),
+            String(quote.customer || quote.policyHolderName || `${quote.firstName || ''} ${quote.lastName || ''}` || 'N/A'),
+            String(quote.eventType || 'N/A'),
+            String(quote.eventDate ? new Date(quote.eventDate).toLocaleDateString() : 'N/A'),
+            String(quote.totalPremium !== null && quote.totalPremium !== undefined ? `$${quote.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"),
+            String(quote.status || 'N/A'),
+            String(quote.coverageLevel || 'N/A')
+        ]);
+
+        const rowsPerPage = 25;
+        const numChunks = Math.ceil(allTableRows.length / rowsPerPage);
+        let currentPageNumForFooter = 0;
+
+        for (let i = 0; i < numChunks; i++) {
+            currentPageNumForFooter++;
+            const startRow = i * rowsPerPage;
+            const endRow = startRow + rowsPerPage;
+            const chunk = allTableRows.slice(startRow, endRow);
+
+            if (i > 0) { // Add a new page for chunks after the first one
+                doc.addPage();
+            }
+
+            autoTable(doc, {
+                head: [tableHeaders], // Ensure headers are repeated on each page
+                body: chunk,
+                startY: 25, // Start table after the title
+                didDrawPage: (data) => {
+                    // Page Header
+                    doc.setFontSize(18);
+                    doc.setTextColor(40);
+                    doc.text("Insurance Quotes Report", doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+                    
+                    // Page Footer
+                    doc.setFontSize(10);
+                    doc.text(`Page ${currentPageNumForFooter} of ${numChunks}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                },
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                margin: { top: 20 } // Margin for the table content itself
+            });
+        }
+
+        doc.save(`quotes_export_${exportType}.pdf`);
+    };
 
     return (
         <div className="p-6">
@@ -293,6 +355,14 @@ export default function Quotes() {
                     >
                         <Download size={18} className="mr-2" />
                         Export CSV
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={handleExportPDF}
+                        className="w-full sm:w-auto"
+                    >
+                        <Download size={18} className="mr-2" />
+                        Export PDF
                     </Button>
                 </div>
             </div>

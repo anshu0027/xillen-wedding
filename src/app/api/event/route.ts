@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
     if (id) {
       const event = await prisma.event.findUnique({
         where: { id: Number(id) },
-        include: { venue: true, quote: true },
+        include: {
+          venue: true,
+          quote: true
+        },
       });
       if (!event)
         return NextResponse.json({ error: "Event not found" }, { status: 404 });

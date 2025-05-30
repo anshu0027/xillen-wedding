@@ -12,6 +12,8 @@ import {
 import Card from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const Transactions = () => {
   const router = useRouter();
@@ -224,6 +226,68 @@ const Transactions = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    if (filteredTransactions.length === 0) {
+      alert("No transactions available to export."); // Consider using a toast notification like in other pages
+      return;
+    }
+
+    const doc = new jsPDF();
+    const tableHeaders = [
+      "Transaction ID",
+      "Quote Number",
+      "Customer",
+      "Date",
+      "Amount",
+      "Payment Method",
+      "Status",
+    ];
+
+    const allTableRows = filteredTransactions.map((transaction) => [
+      String(transaction.transactionId || 'N/A'),
+      String(transaction.quoteNumber || 'N/A'),
+      String(`${transaction.policyHolder?.firstName || ""} ${transaction.policyHolder?.lastName || ""}`.trim() || "N/A"),
+      String(transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString() : 'N/A'),
+      String(transaction.totalPremium !== null && transaction.totalPremium !== undefined ? `$${transaction.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"),
+      String(transaction.source === "ADMIN" ? "CASH" : transaction.paymentMethod || 'N/A'),
+      String(transaction.status || 'N/A')
+    ]);
+
+    const rowsPerPage = 25;
+    const numChunks = Math.ceil(allTableRows.length / rowsPerPage);
+    let currentPageNumForFooter = 0;
+
+    for (let i = 0; i < numChunks; i++) {
+      currentPageNumForFooter++;
+      const startRow = i * rowsPerPage;
+      const endRow = startRow + rowsPerPage;
+      const chunk = allTableRows.slice(startRow, endRow);
+
+      if (i > 0) {
+        doc.addPage();
+      }
+
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: chunk,
+        startY: 25,
+        didDrawPage: (data) => {
+          doc.setFontSize(18);
+          doc.setTextColor(40);
+          doc.text("Transaction Report", doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+          doc.setFontSize(10);
+          doc.text(`Page ${currentPageNumForFooter} of ${numChunks}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+        },
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 20 }
+      });
+    }
+
+    doc.save("transactions_export.pdf");
+  };
+
   const handleBack = () => {
     router.push("/admin");
   };
@@ -313,13 +377,22 @@ const Transactions = () => {
             </div>
           )}
         </div>
-        <Button
-          variant="outline"
-          onClick={handleExportCSV}
-        >
-          <Download size={18} />
-          Export Report
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportCSV}
+          >
+            <Download size={18} className="mr-2" />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportPDF}
+          >
+            <Download size={18} className="mr-2" />
+            Export PDF
+          </Button>
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Card title="Total Revenue" icon={<DollarSign size={20} />}>
@@ -438,31 +511,38 @@ const Transactions = () => {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="text-sm text-gray-700">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        )}
+        {/* Pagination Info and Controls */}
+        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+          <p className="text-sm text-gray-700">
+            Showing <span className="font-medium">{Math.min(endIndex, filteredTransactions.length)}</span> of <span className="font-medium">{filteredTransactions.length}</span> transactions
+          </p>
+          
+          {totalPages > 0 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="flex items-center px-3 py-1 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages || totalPages === 0}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
         {filteredTransactions.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             No transactions found for the selected criteria.

@@ -5,6 +5,8 @@ import { Search, Filter, Download, Eye, PlusCircle, Edit, Mail } from "lucide-re
 import Card from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface PolicyList {
     email: string;
@@ -173,6 +175,63 @@ export default function Policies() {
         URL.revokeObjectURL(url);
     };
 
+    const handleExportPDF = () => {
+        if (filteredForExport.length === 0) {
+            alert("No data available to export.");
+            return;
+        }
+
+        const doc = new jsPDF();
+        const tableHeaders = ["Policy #", "Event Type", "Customer", "Event Date", "Premium", "Coverage", "Status"];
+        
+        const allTableRows = filteredForExport.map(policy => [
+            String(policy.policyNumber || policy.policyId || 'N/A'),
+            String(policy.eventType || 'N/A'),
+            String(policy.customer || (policy.policyHolder?.firstName && policy.policyHolder?.lastName ? `${policy.policyHolder.firstName} ${policy.policyHolder.lastName}` : "N/A")),
+            String(policy.eventDate ? new Date(policy.eventDate).toLocaleDateString() : 'N/A'),
+            String(policy.totalPremium !== null && policy.totalPremium !== undefined ? `$${policy.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"),
+            String(policy.coverageLevel || 'N/A'),
+            String(policy.status || 'N/A')
+        ]);
+        
+        const rowsPerPage = 25;
+        const numChunks = Math.ceil(allTableRows.length / rowsPerPage);
+        let currentPageNumForFooter = 0;
+
+        for (let i = 0; i < numChunks; i++) {
+            currentPageNumForFooter++;
+            const startRow = i * rowsPerPage;
+            const endRow = startRow + rowsPerPage;
+            const chunk = allTableRows.slice(startRow, endRow);
+
+            if (i > 0) { // Add a new page for chunks after the first one
+                doc.addPage();
+            }
+
+            autoTable(doc, {
+                head: [tableHeaders], // Ensure headers are repeated on each page
+                body: chunk,
+                startY: 25, // Start table after the title
+                didDrawPage: (data) => {
+                    // Page Header
+                    doc.setFontSize(18);
+                    doc.setTextColor(40);
+                    doc.text("Insurance Policies Report", doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+                    
+                    // Page Footer
+                    doc.setFontSize(10);
+                    doc.text(`Page ${currentPageNumForFooter} of ${numChunks}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                },
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                margin: { top: 20 } // Margin for the table content itself
+            });
+        }
+
+        doc.save(`policies_export_${exportType}.pdf`);
+    };
+
     const handleDeletePolicy = async (policyId: number) => {
         if (!window.confirm('Are you sure you want to delete this policy?')) return;
         const res = await fetch(`/api/policy/list?policyId=${policyId}`, { method: 'DELETE' });
@@ -270,7 +329,11 @@ export default function Policies() {
                     </select>
                     <Button variant="outline" onClick={handleExportCSV} className="w-full sm:w-auto">
                         <Download size={18} className="mr-2" />
-                        Export Policies
+                        Export CSV
+                    </Button>
+                    <Button variant="outline" onClick={handleExportPDF} className="w-full sm:w-auto">
+                        <Download size={18} className="mr-2" />
+                        Export PDF
                     </Button>
                 </div>
             </div>

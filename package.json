@@ -22,6 +22,7 @@
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.511.0",
     "next": "15.1.0",
     "next-rate-limit": "^0.0.3",

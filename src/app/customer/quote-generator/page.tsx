@@ -447,7 +447,6 @@ export default function QuoteGenerator() {
                   errors.liabilityCoverage ? "border-red-500" : ""
                 }`}
               >
-                <option value="">Select liability coverage</option>
                 {LIABILITY_OPTIONS.map((option) => (
                   <option
                     key={option.value}

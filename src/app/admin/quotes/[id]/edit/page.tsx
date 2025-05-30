@@ -74,7 +74,7 @@ function flattenQuote(quote: any): FormState {
         honoree2FirstName: quote.event?.honoree2FirstName || '',
         honoree2LastName: quote.event?.honoree2LastName || '',
         ceremonyLocationType: quote.event.venue?.ceremonyLocationType || '',
-        indoorOutdoor: quote.event?.indoorOutdoor || '',
+        indoorOutdoor: quote.event.venue?.indoorOutdoor || '',
         venueName: quote.event?.venue?.name || '',
         venueAddress1: quote.event?.venue?.address1 || '',
         venueAddress2: quote.event?.venue?.address2 || '',

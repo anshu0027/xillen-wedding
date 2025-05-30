@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertCircle, DollarSign, Shield, ChevronDown } from "lucide-react";
+import { AlertCircle, DollarSign, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input"; // Added Input
@@ -11,7 +11,7 @@ import {
     GUEST_RANGES,
     COVERAGE_LEVELS,
     LIABILITY_OPTIONS,
-    PROHIBITED_ACTIVITIES,
+    // PROHIBITED_ACTIVITIES,
     LIQUOR_LIABILITY_PREMIUMS,
     LIQUOR_LIABILITY_PREMIUMS_NEW
 } from "@/utils/constants";

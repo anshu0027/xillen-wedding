@@ -3,6 +3,76 @@ import { PrismaClient, StepStatus, QuoteSource } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Types from QuoteContext - consider moving to a shared types file
+type GuestRange =
+  | "1-50"
+  | "51-100"
+  | "101-150"
+  | "151-200"
+  | "201-250"
+  | "251-300"
+  | "301-350"
+  | "351-400";
+type CoverageLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+type LiabilityOption = "none" | "option1" | "option2" | "option3";
+
+// Helper functions for premium calculations (copied from QuoteContext.tsx)
+const calculateBasePremium = (
+  level: CoverageLevel | null | undefined
+): number => {
+  if (level === null || level === undefined) return 0;
+  // Coverage level premium mapping
+  const premiumMap: Record<CoverageLevel, number> = {
+    1: 160, // $7,500 coverage
+    2: 200,
+    3: 250,
+    4: 300,
+    5: 355, // $50,000 coverage
+    6: 450,
+    7: 600,
+    8: 750,
+    9: 900,
+    10: 1025, // $175,000 coverage
+  };
+  return premiumMap[level as CoverageLevel] || 0;
+};
+
+const calculateLiabilityPremium = (
+  option: LiabilityOption | string | undefined | null
+): number => {
+  if (option === null || option === undefined) return 0;
+  switch (option) {
+    case "option1": // $1M liability with $25K property damage
+      return 165;
+    case "option2": // $1M liability with $250K property damage
+      return 180;
+    case "option3": // $1M liability with $1M property damage
+      return 200;
+    default:
+      return 0;
+  }
+};
+
+const calculateLiquorLiabilityPremium = (
+  hasLiquorLiability: boolean | undefined,
+  guestRange: GuestRange | string | undefined | null
+): number => {
+  if (!hasLiquorLiability || guestRange === null || guestRange === undefined)
+    return 0;
+  // Guest count range premium mapping
+  const premiumMap: Record<GuestRange, number> = {
+    "1-50": 65,
+    "51-100": 65,
+    "101-150": 85,
+    "151-200": 85,
+    "201-250": 100,
+    "251-300": 100,
+    "301-350": 150,
+    "351-400": 150,
+  };
+  return premiumMap[guestRange as GuestRange] || 0;
+};
+
 // Helper function for new customer quote number format
 function generateCustomerQuoteNumber(): string {
   const now = new Date();
@@ -274,7 +344,7 @@ export async function POST(req: NextRequest) {
     }
     if (!savedQuote) {
       throw (
-        lastError || // @ts-ignore
+        lastError || 
         new Error("Failed to create quote after multiple attempts.")
       );
     }
@@ -288,7 +358,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("POST /api/quote/step error:", error);
     return NextResponse.json(
-      // @ts-ignore
       { error: error instanceof Error ? error.message : "Server error" },
       { status: 500 }
     );
@@ -411,15 +480,64 @@ export async function PUT(req: NextRequest) {
     if (fields.residentState !== undefined)
       dataToUpdate.residentState = fields.residentState;
     if (fields.email !== undefined) dataToUpdate.email = fields.email;
-    if (fields.coverageLevel !== undefined)
-      dataToUpdate.coverageLevel = parseInt(fields.coverageLevel);
-    if (fields.liabilityCoverage !== undefined)
-      dataToUpdate.liabilityCoverage = parseLiabilityCoverage(
-        fields.liabilityCoverage
-      );
-    if (fields.liquorLiability !== undefined)
-      dataToUpdate.liquorLiability =
-        fields.liquorLiability === "true" || fields.liquorLiability === true;
+
+    // Prepare data for premium calculation
+    const coverageLevelForCalc =
+      fields.coverageLevel !== undefined
+        ? parseInt(fields.coverageLevel)
+        : existingQuote.coverageLevel;
+    const liabilityCoverageForCalc =
+      fields.liabilityCoverage !== undefined
+        ? String(fields.liabilityCoverage)
+        : String(existingQuote.liabilityCoverage);
+    const liquorLiabilityForCalc =
+      fields.liquorLiability !== undefined
+        ? fields.liquorLiability === "true" || fields.liquorLiability === true
+        : existingQuote.liquorLiability;
+    // Ensure maxGuests is a string and one of the GuestRange types for calculation
+    // It might come as a number from `fields` or `existingQuote.event.maxGuests`
+    let maxGuestsForCalc: GuestRange | undefined = undefined;
+    const maxGuestsValue =
+      fields.maxGuests !== undefined
+        ? parseInt(String(fields.maxGuests))
+        : existingQuote.event?.maxGuests;
+
+    if (maxGuestsValue !== undefined && maxGuestsValue !== null) {
+      if (maxGuestsValue <= 50) maxGuestsForCalc = "1-50";
+      else if (maxGuestsValue <= 100) maxGuestsForCalc = "51-100";
+      else if (maxGuestsValue <= 150) maxGuestsForCalc = "101-150";
+      else if (maxGuestsValue <= 200) maxGuestsForCalc = "151-200";
+      else if (maxGuestsValue <= 250) maxGuestsForCalc = "201-250";
+      else if (maxGuestsValue <= 300) maxGuestsForCalc = "251-300";
+      else if (maxGuestsValue <= 350) maxGuestsForCalc = "301-350";
+      else if (maxGuestsValue <= 400) maxGuestsForCalc = "351-400";
+      // else, it remains undefined if out of range, or you can handle error/default
+    }
+
+    // Recalculate premiums
+    const newBasePremium = calculateBasePremium(
+      coverageLevelForCalc as CoverageLevel | null
+    );
+    const newLiabilityPremium = calculateLiabilityPremium(
+      liabilityCoverageForCalc as LiabilityOption | null
+    );
+    const newLiquorLiabilityPremium = calculateLiquorLiabilityPremium(
+      liquorLiabilityForCalc,
+      maxGuestsForCalc as GuestRange | null
+    );
+    const newTotalPremium =
+      newBasePremium + newLiabilityPremium + newLiquorLiabilityPremium;
+
+    dataToUpdate.coverageLevel = coverageLevelForCalc;
+    dataToUpdate.liabilityCoverage = parseLiabilityCoverage(
+      liabilityCoverageForCalc
+    );
+    dataToUpdate.liquorLiability = liquorLiabilityForCalc;
+    dataToUpdate.basePremium = newBasePremium;
+    dataToUpdate.liabilityPremium = newLiabilityPremium;
+    dataToUpdate.liquorLiabilityPremium = newLiquorLiabilityPremium;
+    dataToUpdate.totalPremium = newTotalPremium;
+
     if (fields.covidDisclosure !== undefined)
       dataToUpdate.covidDisclosure =
         fields.covidDisclosure === "true" || fields.covidDisclosure === true;
@@ -427,16 +545,6 @@ export async function PUT(req: NextRequest) {
       dataToUpdate.specialActivities =
         fields.specialActivities === "true" ||
         fields.specialActivities === true;
-    if (fields.totalPremium !== undefined)
-      dataToUpdate.totalPremium = parseFloat(fields.totalPremium);
-    if (fields.basePremium !== undefined)
-      dataToUpdate.basePremium = parseFloat(fields.basePremium);
-    if (fields.liabilityPremium !== undefined)
-      dataToUpdate.liabilityPremium = parseFloat(fields.liabilityPremium);
-    if (fields.liquorLiabilityPremium !== undefined)
-      dataToUpdate.liquorLiabilityPremium = parseFloat(
-        fields.liquorLiabilityPremium
-      );
 
     // Event Data
     const eventDataForUpdate: Partial<Prisma.EventUncheckedUpdateWithoutQuoteInput> =

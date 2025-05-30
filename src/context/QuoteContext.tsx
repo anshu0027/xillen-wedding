@@ -122,7 +122,8 @@ type QuoteAction =
   | { type: 'UPDATE_FIELD'; field: keyof QuoteState; value: any }
   | { type: 'CALCULATE_QUOTE' }
   | { type: 'COMPLETE_STEP'; step: 1 | 2 | 3 }
-  | { type: 'RESET_FORM' };
+  | { type: 'RESET_FORM' }
+  | { type: 'SET_ENTIRE_QUOTE_STATE'; payload: Partial<QuoteState> };
 
 const quoteReducer = (state: QuoteState, action: QuoteAction): QuoteState => {
   switch (action.type) {
@@ -161,6 +162,12 @@ const quoteReducer = (state: QuoteState, action: QuoteAction): QuoteState => {
 
     case 'RESET_FORM':
       return initialState;
+
+    case 'SET_ENTIRE_QUOTE_STATE':
+      return {
+        ...state, // Preserve existing state if payload is partial
+        ...action.payload, // Overwrite with new values
+      };
 
     default:
       return state;

@@ -3,20 +3,67 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/hooks/use-toast";
+import { useQuote, QuoteState } from "@/context/QuoteContext"; // Import QuoteState
 
 import Step1Form from '@/components/quote/Step1Form';
 import Step2Form from '@/components/quote/Step2Form';
 import Step3Form from '@/components/quote/Step3Form';
-import Step4Form from '@/components/quote/Step4Form';
+// Step4Form is removed as we navigate to the review page instead.
 
-function flattenQuote(quote: any) {
+// Define an interface for the form state, matching the output of flattenQuote
+interface QuoteFormState {
+    residentState: string;
+    eventType: string;
+    eventDate: string;
+    maxGuests: string;
+    email: string;
+    coverageLevel: number | null;
+    liabilityCoverage: string;
+    liquorLiability: boolean;
+    covidDisclosure: boolean;
+    specialActivities: boolean;
+    honoree1FirstName: string;
+    honoree1LastName: string;
+    honoree2FirstName: string;
+    honoree2LastName: string;
+    ceremonyLocationType: string;
+    indoorOutdoor: string;
+    venueName: string;
+    venueAddress1: string;
+    venueAddress2: string;
+    venueCountry: string;
+    venueCity: string;
+    venueState: string;
+    venueZip: string;
+    venueAsInsured: boolean;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    relationship: string;
+    hearAboutUs: string;
+    address: string;
+    country: string;
+    city: string;
+    state: string;
+    zip: string;
+    legalNotices: boolean;
+    completingFormName: string;
+    quoteNumber?: string;
+    totalPremium?: number | null;
+    basePremium?: number | null;
+    liabilityPremium?: number | null;
+    liquorLiabilityPremium?: number | null;
+    status?: string;
+}
+
+function flattenQuote(quote: any): QuoteFormState {
     return {
         // Step 1
         residentState: quote.residentState || quote.policyHolder?.state || '',
         eventType: quote.event?.eventType || '',
         eventDate: quote.event?.eventDate || '',
         maxGuests: quote.event?.maxGuests || '',
-        email: quote.policyHolder?.email || '',
+        email: quote?.email || '',
         coverageLevel: quote.coverageLevel ?? null,
         liabilityCoverage: quote.liabilityCoverage ?? '',
         liquorLiability: quote.liquorLiability ?? false,
@@ -27,8 +74,8 @@ function flattenQuote(quote: any) {
         honoree1LastName: quote.event?.honoree1LastName || '',
         honoree2FirstName: quote.event?.honoree2FirstName || '',
         honoree2LastName: quote.event?.honoree2LastName || '',
-        ceremonyLocationType: quote.event?.ceremonyLocationType || '',
-        indoorOutdoor: quote.event?.indoorOutdoor || '',
+        ceremonyLocationType: quote.event.venue?.ceremonyLocationType || '',
+        indoorOutdoor: quote.event.venue?.indoorOutdoor || '',
         venueName: quote.event?.venue?.name || '',
         venueAddress1: quote.event?.venue?.address1 || '',
         venueAddress2: quote.event?.venue?.address2 || '',
@@ -65,23 +112,32 @@ export default function EditUserQuote() {
     const params = useParams();
     const id = params.id as string;
     const [step, setStep] = useState(1);
-    const [formState, setFormState] = useState<any>(null);
+    const [formState, setFormState] = useState<QuoteFormState | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [emailSent, setEmailSent] = useState(false);
     const [showQuoteResults, setShowQuoteResults] = useState(false);
+    const { dispatch } = useQuote(); // Use dispatch from context
+
     useEffect(() => {
         async function fetchQuote() {
             const res = await fetch(`/api/quote/step?quoteNumber=${id}`);
             if (res.ok) {
                 const data = await res.json();
-                setFormState(flattenQuote(data.quote));
+                const flatQuote = flattenQuote(data.quote);
+                setFormState(flatQuote);
+                // Dispatch action to update context state
+                dispatch({ type: 'SET_ENTIRE_QUOTE_STATE', payload: flatQuote as Partial<QuoteState> });
+            } else {
+                toast({ title: "Failed to load quote.", description: "Please try again later.", variant: "destructive" });
+                router.push('/'); // Redirect if quote can't be loaded
             }
         }
         fetchQuote();
-    }, [id]);
+    }, [id, dispatch, router]); // Add dispatch to dependency array
+
     if (!formState) return <div>Loading...</div>;
+
     const handleInputChange = (field: string, value: any) => {
-        setFormState((prev: any) => ({ ...prev, [field]: value }));
+        setFormState((prev: QuoteFormState | null) => ({ ...(prev as QuoteFormState), [field]: value }));
         if (errors[field]) {
             setErrors(prev => {
                 const newErrors = { ...prev };
@@ -90,16 +146,16 @@ export default function EditUserQuote() {
             });
         }
     };
-    // Validation functions for each step (implement as needed)
+
     const validateStep1 = () => {
         const newErrors: Record<string, string> = {};
-        if (!formState.residentState) newErrors.residentState = 'Required';
-        if (!formState.eventType) newErrors.eventType = 'Required';
-        if (!formState.maxGuests) newErrors.maxGuests = 'Required';
-        if (!formState.email) newErrors.email = 'Required';
-        if (!formState.eventDate) newErrors.eventDate = 'Required';
-        if (!formState.coverageLevel) newErrors.coverageLevel = 'Required';
-        if (!formState.covidDisclosure) newErrors.covidDisclosure = 'Required';
+        if (!formState?.residentState) newErrors.residentState = 'Required';
+        if (!formState?.eventType) newErrors.eventType = 'Required';
+        if (!formState?.maxGuests) newErrors.maxGuests = 'Required';
+        if (!formState?.email) newErrors.email = 'Required';
+        if (!formState?.eventDate) newErrors.eventDate = 'Required';
+        if (!formState?.coverageLevel) newErrors.coverageLevel = 'Required';
+        if (formState?.covidDisclosure === undefined || formState?.covidDisclosure === null) newErrors.covidDisclosure = 'Required'; // Check for boolean presence
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -133,29 +189,114 @@ export default function EditUserQuote() {
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
-    // Save handler for all steps
-    const saveStep = async (stepNum: number) => {
+
+    const saveCurrentStepData = async (currentStepNumForValidation: number) => {
         let valid = false;
-        if (stepNum === 1) valid = validateStep1();
-        else if (stepNum === 2) valid = validateStep2();
-        else if (stepNum === 3) valid = validateStep3();
+        if (currentStepNumForValidation === 1) valid = validateStep1();
+        else if (currentStepNumForValidation === 2) valid = validateStep2();
+        else if (currentStepNumForValidation === 3) valid = validateStep3();
+
         if (!valid) {
             toast({ title: "Please fix errors before saving.", description: "", variant: "destructive" });
-            return;
+            return false;
         }
+
+        const payload = {
+            ...formState,
+            quoteNumber: id,
+            step: formState.status || 'INCOMPLETE', // Send current status or a default
+            source: "CUSTOMER_EDIT_SAVE_STEP"
+        };
+
         const res = await fetch('/api/quote/step', {
-            method: 'POST',
+            method: 'PUT', // Changed to PUT for updating
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...formState, quoteNumber: id, step: 'COMPLETE' }),
+            body: JSON.stringify(payload),
         });
+
         if (res.ok) {
-            toast({ title: "Quote updated successfully!", description: "", variant: "default" });
+            const data = await res.json();
+            toast({ title: "Quote progress saved!", description: "", variant: "default" });
+            const updatedStateFromSave = flattenQuote(data.quote);
+            setFormState(updatedStateFromSave);
+            // Dispatch action to update context state
+            dispatch({ type: 'SET_ENTIRE_QUOTE_STATE', payload: updatedStateFromSave as Partial<QuoteState> });
+            return true;
         } else {
             const data = await res.json();
             toast({ title: "Failed to update quote: " + (data.error || 'Unknown error'), description: "", variant: "destructive" });
+            return false;
         }
     };
-    // Stepper UI
+
+    const handleProceedToReview = async () => {
+        if (!validateStep1()) {
+            setStep(1);
+            toast({ title: "Please complete Step 1 correctly.", variant: "destructive" });
+            return;
+        }
+        if (!validateStep2()) {
+            setStep(2);
+            toast({ title: "Please complete Step 2 correctly.", variant: "destructive" });
+            return;
+        }
+        if (!validateStep3()) {
+            setStep(3);
+            toast({ title: "Please complete Step 3 correctly.", variant: "destructive" });
+            return;
+        }
+
+        const payload = {
+            ...formState,
+            quoteNumber: id,
+            step: 'COMPLETE', // Mark as complete for review
+            source: "CUSTOMER_EDIT_FINALIZED"
+        };
+
+        const res = await fetch('/api/quote/step', {
+            method: 'PUT', // Changed to PUT for updating
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const finalQuoteState = flattenQuote(data.quote);
+            setFormState(finalQuoteState);
+            // Dispatch action to update context state
+            dispatch({ type: 'SET_ENTIRE_QUOTE_STATE', payload: finalQuoteState as Partial<QuoteState> });
+            localStorage.setItem('quoteNumber', id); // Ensure review page can pick up quote number
+            router.push('/customer/review');
+        } else {
+            const data = await res.json();
+            toast({ title: "Failed to finalize quote for review: " + (data.error || 'Unknown error'), variant: "destructive" });
+        }
+    };
+
+    const handleStep1Continue = async () => {
+        if (validateStep1()) {
+            if (!showQuoteResults && formState.eventType) { // Check if eventType is selected, as an indicator for readiness to calculate
+                toast({ title: "Please calculate the quote first (button in Step 1).", variant: "info" });
+                return;
+            }
+            const saved = await saveCurrentStepData(1);
+            if (saved) setStep(2);
+        }
+    };
+
+    const handleStep2Continue = async () => {
+        if (validateStep2()) {
+            const saved = await saveCurrentStepData(2);
+            if (saved) setStep(3);
+        }
+    };
+
+    // Called by Step1Form after it calculates quote and updates parent formState via onChange
+    const handleStep1QuoteCalculated = async () => {
+        setShowQuoteResults(true);
+        await saveCurrentStepData(1); // Save the state that now includes premiums
+    };
+
     return (
         <div className="p-6">
             <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
@@ -163,8 +304,26 @@ export default function EditUserQuote() {
                 <Button className="w-full sm:w-auto order-2 sm:order-none" variant="outline" size="sm" onClick={() => router.push('/')}>Back to Home</Button>
             </div>
             <div className="mb-8 flex flex-row justify-center max-w-4xl mx-auto items-center gap-2 sm:gap-3 md:gap-10">
-                {[1, 2, 3, 4].map(s => (
-                    <Button key={s} className="flex-1 min-w-0 text-center rounded-full md:flex-initial md:w-48" variant={step === s ? 'default' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
+                {[
+                    { label: "Step 1", stepNum: 1 },
+                    { label: "Step 2", stepNum: 2 },
+                    { label: "Step 3", stepNum: 3 },
+                    { label: "Review & Pay", stepNum: 4 }, // Conceptual step 4 for the button
+                ].map(s_item => (
+                    <Button 
+                        key={s_item.stepNum} 
+                        className="flex-1 min-w-0 text-center rounded-full md:flex-initial md:w-48" 
+                        variant={step === s_item.stepNum && s_item.stepNum !== 4 ? 'default' : 'outline'} 
+                        onClick={() => {
+                            if (s_item.stepNum === 4) {
+                                handleProceedToReview();
+                            } else {
+                                setStep(s_item.stepNum);
+                            }
+                        }}
+                    >
+                        {s_item.label}
+                    </Button>
                 ))}
             </div>
                 {step === 1 && (
@@ -173,10 +332,10 @@ export default function EditUserQuote() {
                         errors={errors}
                         onChange={handleInputChange}
                         onValidate={validateStep1}
-                        onContinue={() => setStep(2)}
+                        onContinue={handleStep1Continue}
                         showQuoteResults={showQuoteResults}
-                        handleCalculateQuote={() => setShowQuoteResults(true)}
-                        onSave={() => saveStep(1)}
+                        handleCalculateQuote={handleStep1QuoteCalculated} // Renamed prop, Step1Form calls this after its internal calculation and state update
+                        onSave={() => saveCurrentStepData(1)}
                         isCustomerEdit={true}
                     />
                 )}
@@ -186,9 +345,8 @@ export default function EditUserQuote() {
                         errors={errors}
                         onChange={handleInputChange}
                         onValidate={validateStep2}
-                        onContinue={() => setStep(3)}
-                        onSave={() => saveStep(2)}
-                        // isCustomerEdit might be relevant for other steps too if needed
+                        onContinue={handleStep2Continue}
+                        onSave={() => saveCurrentStepData(2)}
                     />
                 )}
                 {step === 3 && (
@@ -197,19 +355,8 @@ export default function EditUserQuote() {
                         errors={errors}
                         onChange={handleInputChange}
                         onValidate={validateStep3}
-                        onContinue={() => setStep(4)}
-                        onSave={() => saveStep(3)}
-                        // isCustomerEdit might be relevant for other steps too if needed
-                    />
-                )}
-                {step === 4 && (
-                    <Step4Form
-                        state={formState}
-                        onSave={saveStep}
-                        onBack={() => setStep(3)}
-                        emailSent={emailSent}
-                        onEmail={() => setEmailSent(true)}
-                        // isCustomerEdit might be relevant for other steps too if needed
+                        onContinue={handleProceedToReview}
+                        onSave={() => saveCurrentStepData(3)}
                     />
                 )}
         </div>

@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
           ? parseFloat(fields.liquorLiabilityPremium)
           : undefined,
       source: isCustomerGenerated ? QuoteSource.CUSTOMER : QuoteSource.ADMIN,
+      isCustomerGenerated: isCustomerGenerated, // <-- ADDED THIS LINE TO SEE IF CUSTOMER GENERATED OR NOT
       status: StepStatus.COMPLETE,
       user: { connect: { id: user.id } },
     };
@@ -451,6 +452,7 @@ export async function PUT(req: NextRequest) {
           ? parseFloat(fields.liquorLiabilityPremium)
           : undefined,
       source: source === "ADMIN" ? QuoteSource.ADMIN : QuoteSource.CUSTOMER, // Determine source
+      isCustomerGenerated: source === "CUSTOMER", // <-- ADDED THIS LINE TO SEE IF CUSTOMER GENERATED OR NOT
       status: fields.status || StepStatus.COMPLETE, // Default to COMPLETE or take from payload
       user: { connect: { id: user.id } },
     };

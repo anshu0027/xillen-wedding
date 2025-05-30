@@ -298,7 +298,7 @@ export default function EditUserQuote() {
     };
 
     return (
-        <div className="p-6">
+        <div className="p-6 m-auto">
             <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
                 <h1 className="text-2xl text-center sm:text-left font-bold text-gray-900 order-1 sm:order-none">Edit Your Quote</h1>
                 <Button className="w-full sm:w-auto order-2 sm:order-none" variant="outline" size="sm" onClick={() => router.push('/')}>Back to Home</Button>

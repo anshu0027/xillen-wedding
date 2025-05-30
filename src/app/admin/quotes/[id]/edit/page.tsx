@@ -188,13 +188,14 @@ export default function EditQuote() {
     const handleSave = async () => {
         try {
             const payload = {
-                step: "COMPLETE",
                 ...formState,
                 quoteNumber: formState.quoteNumber,
-                source: "ADMIN"
+                source: "ADMIN",
+                step: formState.status || "COMPLETE", // Send current status or mark as COMPLETE
+                // status field from formState will be part of ...formState
             };
             const response = await fetch("/api/quote/step", {
-                method: "POST",
+                method: "PUT", // Use PUT for updating an existing quote
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });

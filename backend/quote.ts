@@ -37,7 +37,7 @@ export async function convertQuoteToPolicy(quoteId: number) {
   }
 
   // Determine the policy number prefix based on quote source
-  const policyPrefix = quote.source === "ADMIN" ? "PAI" : "PCI";
+  const policyPrefix = "PI";
   const policyNumber = generateUniqueId(policyPrefix);
 
   // Create the policy and update the quote
@@ -93,7 +93,7 @@ export default async function handler(
         });
       } else {
         // Create new quote with appropriate prefix
-        const prefix = source === "ADMIN" ? "QAI" : "PCI";
+        const prefix = "QI";
         const newQuoteNumber = generateUniqueId(prefix);
 
         quote = await prisma.quote.create({

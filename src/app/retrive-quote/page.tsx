@@ -17,35 +17,35 @@ const RetrieveQuote = () => {
                     onSubmit={async (e) => {
                         e.preventDefault();
                         if (!input.trim()) {
-                            toast.error("Please enter a Quote or Policy ID", {
-                                variant: 'custom',
-                                className: 'bg-white text-red-600'
-                            });
+                            toast.error("Please enter a Quote or Policy ID");
                             return;
                         }
                         setLoading(true);
                         try {
                             const res = await fetch(`/api/quote/step?quoteNumber=${input.trim()}`);
                             if (!res.ok) {
-                                toast.error("No quote or policy found with that ID", {
-                                    variant: 'custom',
-                                    className: 'bg-white text-red-600'
-                                });
+                                toast.error("No quote or policy found with that ID");
                                 return;
                             }
                             const data = await res.json();
-                            if (input.startsWith("WI")) {
-                                router.push(`/customer/edit/${input}`);
-                            } else if (input.startsWith("POC")) {
+
+                            // Check if the quote has been converted to a policy
+                            if (data.quote && data.quote.policy && data.quote.policy.id) {
+                                toast.error("This quote has been converted to a policy and can no longer be edited.");
+                                alert("This quote has been converted to a policy and can no longer be edited. You'll be redirected to the Generate Quote page.");
+                                router.push(`/customer/quote-generator`);
+                                return;
+                            }
+
+                            // Existing logic for navigation - can be simplified if all prefixes lead to the same edit page
+                            if (input.startsWith("WI") || input.startsWith("POC") || input.startsWith("QI-")) { // Assuming QI- is also a valid prefix for quotes not yet policies
                                 router.push(`/customer/edit/${input}`);
                             } else {
-                                router.push(`/customer/edit/${input}`);
+                                // Fallback or handle unknown prefixes if necessary
+                                toast.error("Invalid ID format or quote cannot be edited.");
                             }
                         } catch (error) {
-                            toast.error("Error retrieving quote or policy", {
-                                variant: 'custom',
-                                className: 'bg-white text-red-600'
-                            });
+                            toast.error("Error retrieving quote or policy");
                         } finally {
                             setLoading(false);
                         }

@@ -18,7 +18,7 @@ export default function Payment() {
     const handlePay = () => {
         setProcessing(true);
         setTimeout(() => {
-            router.replace("/customer/review?payment=success");
+            router.replace(`/customer/review?payment=success&method=${selected}`);
         }, 1500);
     };
 

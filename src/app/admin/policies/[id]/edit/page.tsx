@@ -17,7 +17,7 @@ function flattenPolicy(policy: any) {
         eventType: policy.event?.eventType || '',
         eventDate: policy.event?.eventDate || '',
         maxGuests: policy.event?.maxGuests || '',
-        email: policy.policyHolder?.email || '',
+        email: policy?.email || '',
         coverageLevel: policy.coverageLevel ?? null,
         liabilityCoverage: policy.liabilityCoverage ?? '',
         liquorLiability: policy.liquorLiability ?? false,

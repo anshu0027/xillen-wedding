@@ -1,33 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, StepStatus, QuoteSource } from "@prisma/client";
-import { generateUniqueId } from "@/../backend/prismaClient";
 
 const prisma = new PrismaClient();
+
+// Helper function for new customer quote number format
+function generateCustomerQuoteNumber(): string {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, "0");
+  const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
+  const year = String(now.getFullYear());
+  const dateStr = `${day}${month}${year}`;
+  // Generate a 6-digit random number
+  const randomNumber = Math.floor(100000 + Math.random() * 900000);
+  return `QI-${dateStr}-${randomNumber}`;
+}
+function generateAdminQuoteNumber(): string {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, "0");
+  const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
+  const year = String(now.getFullYear());
+  const dateStr = `${day}${month}${year}`;
+  // Generate a 6-digit random number
+  const randomNumber = Math.floor(100000 + Math.random() * 900000);
+  return `QI-${dateStr}-${randomNumber}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log("Incoming quote POST:", body);
     const {
-      step,
+      step, // Expected: "STEP1", "STEP2", "STEP3", "COMPLETE"
       quoteNumber: rawQuoteNumber,
-      source = "CUSTOMER",
-      paymentStatus,
+      source = "CUSTOMER", // Default to CUSTOMER
+      // paymentStatus, // Remove paymentStatus from POST logic
       ...fields
     } = body;
     const quoteNumber = rawQuoteNumber === "" ? undefined : rawQuoteNumber;
 
     // Determine if customer or admin
     const referer = req.headers.get("referer");
-    const isCustomerGenerated =
-      source === "CUSTOMER" || !referer || !referer.includes("/admin/");
+    // Admin source is explicitly set or if accessing via /admin/ path
+    const isAdminRequest =
+      source === "ADMIN" || (referer && referer.includes("/admin/"));
+    const effectiveSource = isAdminRequest
+      ? QuoteSource.ADMIN
+      : QuoteSource.CUSTOMER;
+    const isCustomerGenerated = effectiveSource === QuoteSource.CUSTOMER;
 
-    if (step !== "COMPLETE") {
+    let currentStepStatus: StepStatus;
+
+    if (step && Object.values(StepStatus).includes(step as StepStatus)) {
+      currentStepStatus = step as StepStatus;
+    } else if (isCustomerGenerated && !quoteNumber) {
+      // For new customer quotes, default to STEP1 if not specified.
+      currentStepStatus = StepStatus.STEP1;
+    } else if (isAdminRequest && !quoteNumber) {
+      // Admin creating a new quote, defaults to COMPLETE.
+      currentStepStatus = StepStatus.COMPLETE;
+    } else if (
+      quoteNumber &&
+      fields.status &&
+      Object.values(StepStatus).includes(fields.status as StepStatus)
+    ) {
+      // If updating via POST and status is provided in fields
+      currentStepStatus = fields.status as StepStatus;
+    } else if (quoteNumber) {
+      // If updating via POST and no specific step/status sent, assume COMPLETE or keep existing (handled later)
+      currentStepStatus = StepStatus.COMPLETE; // Fallback for POST updates if no status sent
+    } else {
       return NextResponse.json(
-        {
-          error:
-            "Quote can only be saved when step is COMPLETE and payment is successful.",
-        },
+        { error: "Invalid or missing 'step' information." },
+        { status: 400 }
+      );
+    }
+
+    // For Admin: Quote can only be saved/created when step is COMPLETE.
+    if (
+      isAdminRequest &&
+      currentStepStatus !== StepStatus.COMPLETE &&
+      !quoteNumber
+    ) {
+      // Stricter for new admin quotes
+      return NextResponse.json(
+        { error: "Admin quotes must be created with step COMPLETE." },
         { status: 400 }
       );
     }
@@ -98,9 +154,9 @@ export async function POST(req: NextRequest) {
         fields.liquorLiabilityPremium !== undefined
           ? parseFloat(fields.liquorLiabilityPremium)
           : undefined,
-      source: isCustomerGenerated ? QuoteSource.CUSTOMER : QuoteSource.ADMIN,
-      isCustomerGenerated: isCustomerGenerated, // <-- ADDED THIS LINE TO SEE IF CUSTOMER GENERATED OR NOT
-      status: StepStatus.COMPLETE,
+      source: effectiveSource,
+      isCustomerGenerated: isCustomerGenerated,
+      status: currentStepStatus, // Set status based on the current step/flow
       user: { connect: { id: user.id } },
     };
 
@@ -143,196 +199,87 @@ export async function POST(req: NextRequest) {
       completingFormName: fields.completingFormName,
     };
 
-    // Validate required fields
+    // Validate required fields (for step 1, only require quote basics)
     if (
-      !eventFields.eventType ||
-      !eventFields.eventDate ||
-      !eventFields.maxGuests
+      !fields.residentState ||
+      !fields.eventType ||
+      !fields.maxGuests ||
+      !fields.eventDate ||
+      !fields.coverageLevel ||
+      !fields.email ||
+      !fields.covidDisclosure
     ) {
       return NextResponse.json(
-        { error: "Missing event details." },
-        { status: 400 }
-      );
-    }
-    if (
-      !venueFields.name ||
-      !venueFields.address1 ||
-      !venueFields.country ||
-      !venueFields.city ||
-      !venueFields.state ||
-      !venueFields.zip
-    ) {
-      return NextResponse.json(
-        { error: "Missing venue details." },
-        { status: 400 }
-      );
-    }
-    if (
-      !policyHolderFields.firstName ||
-      !policyHolderFields.lastName ||
-      !policyHolderFields.phone
-    ) {
-      return NextResponse.json(
-        { error: "Missing policy holder details." },
+        { error: "Missing required quote details." },
         { status: 400 }
       );
     }
 
-    // --- QUOTE CREATE/UPDATE LOGIC ---
+    // --- QUOTE CREATE LOGIC ---
     let savedQuote;
-
-    // Ensure email is always defined before any Prisma call
-    const safeQuoteFields = {
-      ...quoteFields,
-      email: quoteFields.email ?? "no-email@example.com", // fallback if missing
-    };
-
-    if (quoteNumber) {
-      // Check if quote exists
-      const existingQuote = await prisma.quote.findUnique({
-        where: { quoteNumber },
-        include: { event: { include: { venue: true } } },
-      });
-
-      if (existingQuote) {
-        // Update existing quote
-        savedQuote = await prisma.quote.update({
-          where: { quoteNumber },
-          data: {
-            ...safeQuoteFields,
-            event: {
-              upsert: {
-                create: { ...eventFields, venue: { create: venueFields } },
-                update: {
-                  ...eventFields,
-                  venue: existingQuote.event?.venue
-                    ? { update: venueFields }
-                    : { create: venueFields },
-                },
-              },
-            },
-            policyHolder: {
-              upsert: {
-                create: policyHolderFields,
-                update: policyHolderFields,
-              },
-            },
-          },
-        });
-        // Always fetch the updated quote with all relations for response
-        savedQuote = await prisma.quote.findUnique({
-          where: { quoteNumber },
-          include: {
-            event: { include: { venue: true } },
-            policyHolder: true,
-            policy: true,
-          },
-        });
+    let newQuoteNumberToTry;
+    let attempt = 0;
+    const maxAttempts = 5;
+    let lastError;
+    while (attempt < maxAttempts) {
+      if (isCustomerGenerated) {
+        newQuoteNumberToTry = generateCustomerQuoteNumber();
       } else {
-        // Create new quote with existing number
+        // Admin
+        newQuoteNumberToTry = generateAdminQuoteNumber();
+      }
+      try {
         savedQuote = await prisma.quote.create({
           data: {
-            ...safeQuoteFields,
-            quoteNumber,
-            event: {
-              create: {
-                ...eventFields,
-                venue: { create: venueFields },
-              },
-            },
-            policyHolder: { create: policyHolderFields },
+            ...quoteFields,
+            quoteNumber: newQuoteNumberToTry,
+            // Only create event/policyHolder if provided (step 1 may not have all fields)
+            ...(fields.eventType && fields.eventDate && fields.maxGuests
+              ? {
+                  event: {
+                    create: {
+                      ...eventFields,
+                      venue: { create: venueFields },
+                    },
+                  },
+                }
+              : {}),
+            ...(fields.firstName && fields.lastName && fields.phone
+              ? {
+                  policyHolder: { create: policyHolderFields },
+                }
+              : {}),
           },
-        });
-        // Always fetch the updated quote with all relations for response
-        savedQuote = await prisma.quote.findUnique({
-          where: { quoteNumber },
           include: {
             event: { include: { venue: true } },
             policyHolder: true,
-            policy: true,
           },
         });
-      }
-    } else {
-      // Create new quote with new number
-      const prefix = isCustomerGenerated ? "PCI" : "QAI";
-      let attempt = 0;
-      const maxAttempts = 5;
-      let lastError;
-      while (attempt < maxAttempts) {
-        const newQuoteNumber = generateUniqueId(prefix);
-        try {
-          savedQuote = await prisma.quote.create({
-            data: {
-              ...safeQuoteFields,
-              quoteNumber: newQuoteNumber,
-              event: {
-                create: {
-                  ...eventFields,
-                  venue: { create: venueFields },
-                },
-              },
-              policyHolder: { create: policyHolderFields },
-            },
-            include: {
-              event: { include: { venue: true } },
-              policyHolder: true,
-            },
-          });
-          break; // Success
-        } catch (error) {
-          if (
-            error.code === "P2002" &&
-            error.meta?.target?.includes("quoteNumber")
-          ) {
-            attempt++;
-            lastError = error;
-            continue; // Retry
-          } else {
-            throw error;
-          }
+        break; // Success
+      } catch (error: any) {
+        if (
+          error?.code === "P2002" && // Prisma unique constraint violation
+          error.meta?.target?.includes("quoteNumber")
+        ) {
+          attempt++;
+          console.warn(
+            `Quote number ${newQuoteNumberToTry} collision. Retrying... (${attempt}/${maxAttempts})`
+          );
+          lastError = error;
+          continue; // Retry
+        } else {
+          throw error;
         }
-      }
-      if (!savedQuote) {
-        throw (
-          lastError ||
-          new Error("Failed to create quote after multiple attempts.")
-        );
       }
     }
-
-    // If this is a customer quote with successful payment, convert to policy
-    if (isCustomerGenerated && paymentStatus === "SUCCESS") {
-      // Call the convert-to-policy endpoint instead of creating policy directly
-      const convertResponse = await fetch(
-        new URL("/api/quote/convert-to-policy", req.url).toString(),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            quoteNumber: savedQuote.quoteNumber,
-            forceConvert: true, // Force convert since payment is successful
-          }),
-        }
+    if (!savedQuote) {
+      throw (
+        lastError || // @ts-ignore
+        new Error("Failed to create quote after multiple attempts.")
       );
-
-      if (!convertResponse.ok) {
-        throw new Error("Failed to convert quote to policy");
-      }
-
-      const { policyNumber, policy } = await convertResponse.json();
-
-      return NextResponse.json({
-        message: "Quote saved and converted to policy successfully",
-        quoteNumber: savedQuote.quoteNumber,
-        policyNumber,
-        policy,
-        converted: true,
-      });
     }
 
+    // Return quoteNumber and quote (do not convert to policy here)
     return NextResponse.json({
       message: "Quote saved successfully",
       quoteNumber: savedQuote.quoteNumber,
@@ -341,6 +288,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("POST /api/quote/step error:", error);
     return NextResponse.json(
+      // @ts-ignore
       { error: error instanceof Error ? error.message : "Server error" },
       { status: 500 }
     );
@@ -352,9 +300,9 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     console.log("Incoming quote PUT:", body);
     const {
-      quoteNumber, // Expect quoteNumber to identify the quote to update
-      // step, // 'step' might not be relevant for PUT, or could be used to set status
-      source = "CUSTOMER", // Default or from payload
+      quoteNumber,
+      step, // Optional: client might send the current step to update status
+      source: sourceFromBody,
       // paymentStatus, // paymentStatus is usually handled by payment events or conversion
       ...fields
     } = body;
@@ -368,7 +316,11 @@ export async function PUT(req: NextRequest) {
 
     const existingQuote = await prisma.quote.findUnique({
       where: { quoteNumber },
-      include: { event: { include: { venue: true } }, policyHolder: true, user: true },
+      include: {
+        event: { include: { venue: true } },
+        policyHolder: true,
+        user: true,
+      },
     });
 
     if (!existingQuote) {
@@ -378,31 +330,48 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // --- USER HANDLING (similar to POST, in case email is updated) ---
-    let user;
-    if (fields.email) {
-      user = await prisma.user.findUnique({ where: { email: fields.email } });
-      if (!user) {
-        // If admin is changing email to a new user, create that user.
-        // Or, decide if email changes should only link to existing users.
-        // For simplicity, let's assume if email is provided, we find or create.
-        user = await prisma.user.create({
+    // Determine source and isCustomerGenerated
+    const referer = req.headers.get("referer");
+    let effectiveSource: QuoteSource;
+    if (sourceFromBody) {
+      effectiveSource =
+        sourceFromBody === "ADMIN" ? QuoteSource.ADMIN : QuoteSource.CUSTOMER;
+    } else {
+      // If source not in body, derive from existing quote or referer for safety
+      effectiveSource =
+        existingQuote.source ||
+        (referer && referer.includes("/admin/")
+          ? QuoteSource.ADMIN
+          : QuoteSource.CUSTOMER);
+    }
+    const isCustomerGeneratedUpdate = effectiveSource === QuoteSource.CUSTOMER;
+
+    // --- USER HANDLING ---
+    let userToConnectInfo = { id: existingQuote.userId }; // Default to existing user
+
+    if (fields.email && fields.email !== existingQuote.user?.email) {
+      let userForUpdate = await prisma.user.findUnique({
+        where: { email: fields.email },
+      });
+      if (!userForUpdate) {
+        userForUpdate = await prisma.user.create({
           data: {
             email: fields.email,
-            firstName: fields.firstName || existingQuote.policyHolder?.firstName || "",
-            lastName: fields.lastName || existingQuote.policyHolder?.lastName || "",
+            firstName:
+              fields.firstName || existingQuote.policyHolder?.firstName || "",
+            lastName:
+              fields.lastName || existingQuote.policyHolder?.lastName || "",
             phone: fields.phone || existingQuote.policyHolder?.phone || "",
           },
         });
       }
-    } else if (existingQuote.user) {
-        user = existingQuote.user; // Keep existing user if email not in payload
-    } else {
-        // This case should ideally not happen if quotes always have users.
-        // If it can, handle appropriately, maybe error or use a default.
-         return NextResponse.json(
-        { error: "User email is missing and no existing user linked to quote." },
-        { status: 400 }
+      userToConnectInfo = { id: userForUpdate.id };
+    } else if (!existingQuote.userId) {
+      // This should not happen if user is always linked. Handle error if necessary.
+      console.error(`Quote ${quoteNumber} is missing a user link.`);
+      return NextResponse.json(
+        { error: "Quote is missing user information." },
+        { status: 500 }
       );
     }
 
@@ -420,104 +389,263 @@ export async function PUT(req: NextRequest) {
       return parseFloat(val as string);
     }
 
-    const quoteFieldsToUpdate: any = {
-      residentState: fields.residentState,
-      email: fields.email, // This will be the quote's primary email
-      coverageLevel:
-        fields.coverageLevel !== undefined
-          ? parseInt(fields.coverageLevel)
-          : undefined,
-      liabilityCoverage: parseLiabilityCoverage(fields.liabilityCoverage),
-      liquorLiability:
-        fields.liquorLiability === "true" || fields.liquorLiability === true,
-      covidDisclosure:
-        fields.covidDisclosure === "true" || fields.covidDisclosure === true,
-      specialActivities:
+    // Determine the status to update
+    let newStatus = existingQuote.status; // Default to existing status
+    if (step && Object.values(StepStatus).includes(step as StepStatus)) {
+      newStatus = step as StepStatus;
+    } else if (
+      fields.status &&
+      Object.values(StepStatus).includes(fields.status as StepStatus)
+    ) {
+      newStatus = fields.status as StepStatus;
+    }
+
+    const dataToUpdate: Prisma.quoteUpdateInput = {
+      user: { connect: userToConnectInfo },
+      source: effectiveSource,
+      isCustomerGenerated: isCustomerGeneratedUpdate,
+      status: newStatus,
+    };
+
+    // Selectively add fields to update
+    if (fields.residentState !== undefined)
+      dataToUpdate.residentState = fields.residentState;
+    if (fields.email !== undefined) dataToUpdate.email = fields.email;
+    if (fields.coverageLevel !== undefined)
+      dataToUpdate.coverageLevel = parseInt(fields.coverageLevel);
+    if (fields.liabilityCoverage !== undefined)
+      dataToUpdate.liabilityCoverage = parseLiabilityCoverage(
+        fields.liabilityCoverage
+      );
+    if (fields.liquorLiability !== undefined)
+      dataToUpdate.liquorLiability =
+        fields.liquorLiability === "true" || fields.liquorLiability === true;
+    if (fields.covidDisclosure !== undefined)
+      dataToUpdate.covidDisclosure =
+        fields.covidDisclosure === "true" || fields.covidDisclosure === true;
+    if (fields.specialActivities !== undefined)
+      dataToUpdate.specialActivities =
         fields.specialActivities === "true" ||
-        fields.specialActivities === true,
-      totalPremium:
-        fields.totalPremium !== undefined
-          ? parseFloat(fields.totalPremium)
-          : undefined,
-      basePremium:
-        fields.basePremium !== undefined
-          ? parseFloat(fields.basePremium)
-          : undefined,
-      liabilityPremium:
-        fields.liabilityPremium !== undefined
-          ? parseFloat(fields.liabilityPremium)
-          : undefined,
-      liquorLiabilityPremium:
-        fields.liquorLiabilityPremium !== undefined
-          ? parseFloat(fields.liquorLiabilityPremium)
-          : undefined,
-      source: source === "ADMIN" ? QuoteSource.ADMIN : QuoteSource.CUSTOMER, // Determine source
-      isCustomerGenerated: source === "CUSTOMER", // <-- ADDED THIS LINE TO SEE IF CUSTOMER GENERATED OR NOT
-      status: fields.status || StepStatus.COMPLETE, // Default to COMPLETE or take from payload
-      user: { connect: { id: user.id } },
-    };
+        fields.specialActivities === true;
+    if (fields.totalPremium !== undefined)
+      dataToUpdate.totalPremium = parseFloat(fields.totalPremium);
+    if (fields.basePremium !== undefined)
+      dataToUpdate.basePremium = parseFloat(fields.basePremium);
+    if (fields.liabilityPremium !== undefined)
+      dataToUpdate.liabilityPremium = parseFloat(fields.liabilityPremium);
+    if (fields.liquorLiabilityPremium !== undefined)
+      dataToUpdate.liquorLiabilityPremium = parseFloat(
+        fields.liquorLiabilityPremium
+      );
 
-    // Event fields
-    const eventFieldsToUpdate = {
-      eventType: fields.eventType,
-      eventDate: fields.eventDate ? new Date(fields.eventDate) : undefined,
-      maxGuests: fields.maxGuests ? parseInt(fields.maxGuests.toString()) : undefined,
-      honoree1FirstName: fields.honoree1FirstName,
-      honoree1LastName: fields.honoree1LastName,
-      honoree2FirstName: fields.honoree2FirstName,
-      honoree2LastName: fields.honoree2LastName,
-    };
+    // Event Data
+    const eventDataForUpdate: Partial<Prisma.EventUncheckedUpdateWithoutQuoteInput> =
+      {};
+    if (fields.eventType !== undefined)
+      eventDataForUpdate.eventType = fields.eventType;
+    if (fields.eventDate !== undefined)
+      eventDataForUpdate.eventDate = new Date(fields.eventDate);
+    if (fields.maxGuests !== undefined)
+      eventDataForUpdate.maxGuests = parseInt(fields.maxGuests.toString());
+    if (fields.honoree1FirstName !== undefined)
+      eventDataForUpdate.honoree1FirstName = fields.honoree1FirstName;
+    if (fields.honoree1LastName !== undefined)
+      eventDataForUpdate.honoree1LastName = fields.honoree1LastName;
+    if (fields.honoree2FirstName !== undefined)
+      eventDataForUpdate.honoree2FirstName = fields.honoree2FirstName;
+    if (fields.honoree2LastName !== undefined)
+      eventDataForUpdate.honoree2LastName = fields.honoree2LastName;
 
-    const venueFieldsToUpdate = {
-      name: fields.venueName,
-      address1: fields.venueAddress1,
-      address2: fields.venueAddress2,
-      country: fields.venueCountry,
-      city: fields.venueCity,
-      state: fields.venueState,
-      zip: fields.venueZip,
-      ceremonyLocationType: fields.ceremonyLocationType,
-      indoorOutdoor: fields.indoorOutdoor,
-      venueAsInsured: fields.venueAsInsured,
-    };
+    // Venue Data (nested within event)
+    const venueDataForUpdate: Partial<Prisma.VenueUncheckedUpdateWithoutEventInput> =
+      {};
+    if (fields.venueName !== undefined)
+      venueDataForUpdate.name = fields.venueName;
+    if (fields.venueAddress1 !== undefined)
+      venueDataForUpdate.address1 = fields.venueAddress1;
+    if (fields.venueAddress2 !== undefined)
+      venueDataForUpdate.address2 = fields.venueAddress2;
+    if (fields.venueCountry !== undefined)
+      venueDataForUpdate.country = fields.venueCountry;
+    if (fields.venueCity !== undefined)
+      venueDataForUpdate.city = fields.venueCity;
+    if (fields.venueState !== undefined)
+      venueDataForUpdate.state = fields.venueState;
+    if (fields.venueZip !== undefined) venueDataForUpdate.zip = fields.venueZip;
+    if (fields.ceremonyLocationType !== undefined)
+      venueDataForUpdate.ceremonyLocationType = fields.ceremonyLocationType;
+    if (fields.indoorOutdoor !== undefined)
+      venueDataForUpdate.indoorOutdoor = fields.indoorOutdoor;
+    if (fields.venueAsInsured !== undefined)
+      venueDataForUpdate.venueAsInsured =
+        typeof fields.venueAsInsured === "boolean"
+          ? fields.venueAsInsured
+          : fields.venueAsInsured === "true";
 
-    const policyHolderFieldsToUpdate = {
-      firstName: fields.firstName,
-      lastName: fields.lastName,
-      phone: fields.phone,
-      relationship: fields.relationship,
-      hearAboutUs: fields.hearAboutUs,
-      address: fields.address,
-      country: fields.country,
-      city: fields.city,
-      state: fields.state,
-      zip: fields.zip,
-      legalNotices: fields.legalNotices,
-      completingFormName: fields.completingFormName,
-    };
+    if (
+      Object.keys(eventDataForUpdate).length > 0 ||
+      Object.keys(venueDataForUpdate).length > 0
+    ) {
+      dataToUpdate.event = {
+        upsert: {
+          create: {
+            // Provide all required fields for create, falling back to existing or defaults
+            eventType:
+              fields.eventType ||
+              existingQuote.event?.eventType ||
+              "DefaultEvent",
+            eventDate: fields.eventDate
+              ? new Date(fields.eventDate)
+              : existingQuote.event?.eventDate || new Date(),
+            maxGuests: fields.maxGuests
+              ? parseInt(fields.maxGuests.toString())
+              : existingQuote.event?.maxGuests || 0,
+            honoree1FirstName:
+              fields.honoree1FirstName ??
+              existingQuote.event?.honoree1FirstName,
+            honoree1LastName:
+              fields.honoree1LastName ?? existingQuote.event?.honoree1LastName,
+            honoree2FirstName:
+              fields.honoree2FirstName ??
+              existingQuote.event?.honoree2FirstName,
+            honoree2LastName:
+              fields.honoree2LastName ?? existingQuote.event?.honoree2LastName,
+            venue: {
+              create: {
+                name:
+                  fields.venueName ||
+                  existingQuote.event?.venue?.name ||
+                  "Default Venue",
+                address1:
+                  fields.venueAddress1 ||
+                  existingQuote.event?.venue?.address1 ||
+                  "Default Address",
+                country:
+                  fields.venueCountry ||
+                  existingQuote.event?.venue?.country ||
+                  "USA",
+                city:
+                  fields.venueCity ||
+                  existingQuote.event?.venue?.city ||
+                  "Default City",
+                state:
+                  fields.venueState ||
+                  existingQuote.event?.venue?.state ||
+                  "CA",
+                zip:
+                  fields.venueZip || existingQuote.event?.venue?.zip || "00000",
+                ceremonyLocationType:
+                  fields.ceremonyLocationType ??
+                  existingQuote.event?.venue?.ceremonyLocationType,
+                indoorOutdoor:
+                  fields.indoorOutdoor ??
+                  existingQuote.event?.venue?.indoorOutdoor,
+                venueAsInsured:
+                  typeof fields.venueAsInsured === "boolean"
+                    ? fields.venueAsInsured
+                    : fields.venueAsInsured === "true" ||
+                      existingQuote.event?.venue?.venueAsInsured ||
+                      false,
+              },
+            },
+          },
+          update: {
+            ...eventDataForUpdate,
+            ...(Object.keys(venueDataForUpdate).length > 0 && {
+              venue: {
+                upsert: {
+                  create:
+                    venueDataForUpdate as Prisma.VenueCreateWithoutEventInput,
+                  update: venueDataForUpdate,
+                },
+              }, // Simplified, ensure create has all required
+            }),
+          },
+        },
+      };
+    }
+
+    // PolicyHolder Data
+    const policyHolderDataForUpdate: Partial<Prisma.PolicyHolderUncheckedUpdateWithoutQuoteInput> =
+      {};
+    if (fields.firstName !== undefined)
+      policyHolderDataForUpdate.firstName = fields.firstName;
+    if (fields.lastName !== undefined)
+      policyHolderDataForUpdate.lastName = fields.lastName;
+    if (fields.phone !== undefined)
+      policyHolderDataForUpdate.phone = fields.phone;
+    // ... (add other policyHolder fields similarly)
+    if (fields.address !== undefined)
+      policyHolderDataForUpdate.address = fields.address;
+    if (fields.country !== undefined)
+      policyHolderDataForUpdate.country = fields.country;
+    if (fields.city !== undefined) policyHolderDataForUpdate.city = fields.city;
+    if (fields.state !== undefined)
+      policyHolderDataForUpdate.state = fields.state;
+    if (fields.zip !== undefined) policyHolderDataForUpdate.zip = fields.zip;
+    if (fields.relationship !== undefined)
+      policyHolderDataForUpdate.relationship = fields.relationship;
+    if (fields.hearAboutUs !== undefined)
+      policyHolderDataForUpdate.hearAboutUs = fields.hearAboutUs;
+    if (fields.legalNotices !== undefined)
+      policyHolderDataForUpdate.legalNotices =
+        typeof fields.legalNotices === "boolean"
+          ? fields.legalNotices
+          : fields.legalNotices === "true";
+    if (fields.completingFormName !== undefined)
+      policyHolderDataForUpdate.completingFormName = fields.completingFormName;
 
     // --- QUOTE UPDATE LOGIC ---
     const updatedQuote = await prisma.quote.update({
       where: { quoteNumber },
       data: {
-        ...quoteFieldsToUpdate,
-        event: {
-          upsert: { // Use upsert for event and venue if they might not exist (though for an update they should)
-            create: { ...eventFieldsToUpdate, venue: { create: venueFieldsToUpdate } },
-            update: {
-              ...eventFieldsToUpdate,
-              venue: existingQuote.event?.venue
-                ? { update: venueFieldsToUpdate }
-                : { create: venueFieldsToUpdate }, // Should ideally be just update
+        ...dataToUpdate,
+        ...(Object.keys(policyHolderDataForUpdate).length > 0 && {
+          policyHolder: {
+            upsert: {
+              create: {
+                // Provide all required fields for create
+                firstName:
+                  fields.firstName ||
+                  existingQuote.policyHolder?.firstName ||
+                  "N/A",
+                lastName:
+                  fields.lastName ||
+                  existingQuote.policyHolder?.lastName ||
+                  "N/A",
+                phone:
+                  fields.phone || existingQuote.policyHolder?.phone || "N/A",
+                address:
+                  fields.address ||
+                  existingQuote.policyHolder?.address ||
+                  "N/A",
+                country:
+                  fields.country ||
+                  existingQuote.policyHolder?.country ||
+                  "USA",
+                city: fields.city || existingQuote.policyHolder?.city || "N/A",
+                state:
+                  fields.state || existingQuote.policyHolder?.state || "CA",
+                zip: fields.zip || existingQuote.policyHolder?.zip || "00000",
+                relationship:
+                  fields.relationship ??
+                  existingQuote.policyHolder?.relationship,
+                hearAboutUs:
+                  fields.hearAboutUs ?? existingQuote.policyHolder?.hearAboutUs,
+                legalNotices:
+                  typeof fields.legalNotices === "boolean"
+                    ? fields.legalNotices
+                    : fields.legalNotices === "true" ||
+                      existingQuote.policyHolder?.legalNotices ||
+                      false,
+                completingFormName:
+                  fields.completingFormName ??
+                  existingQuote.policyHolder?.completingFormName,
+              },
+              update: policyHolderDataForUpdate,
             },
           },
-        },
-        policyHolder: {
-          upsert: { // Use upsert for policyHolder
-            create: policyHolderFieldsToUpdate,
-            update: policyHolderFieldsToUpdate,
-          },
-        },
+        }),
       },
       include: {
         event: { include: { venue: true } },
@@ -534,7 +662,13 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     console.error("PUT /api/quote/step error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Server error during quote update" },
+      // @ts-ignore
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Server error during quote update",
+      },
       { status: 500 }
     );
   }
@@ -622,7 +756,7 @@ export async function GET(req: NextRequest) {
         include: {
           event: { include: { venue: true } },
           policyHolder: true,
-          policy: true,
+          policy: { include: { payments: true } },
         },
       });
       // Also fetch policies for admin policies table

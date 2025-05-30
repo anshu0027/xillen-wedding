@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     if (id) {
       // Fetch payment by payment id (existing logic)
       const payment = await prisma.payment.findUnique({
-        where: { id: Number(id) },
+        where: { id: parseInt(id) }, // Use parseInt for Int IDs
         include: {
           policy: {
             include: {
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     let payments;
     if (policyId) {
       payments = await prisma.payment.findMany({
-        where: { policyId: Number(policyId) },
+        where: { policyId: parseInt(policyId) }, // Use parseInt for Int IDs
         include: {
           policy: {
             include: {
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       payments = await prisma.payment.findMany({
         where: {
           policy: {
-            quoteId: Number(quoteId),
+            quoteId: parseInt(quoteId), // Assuming quoteId on Policy is also Int
           },
         },
         include: {
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       policyId,
       method,
       status, // Expecting "SUCCESS", "PENDING", or "FAILED" from client
-      reference,
+      reference, // Matches model field name
     } = body;
 
     if (!amount || !policyId || !status) {
@@ -149,10 +149,10 @@ export async function POST(req: NextRequest) {
     const payment = await prisma.payment.create({
       data: {
         amount: parseFloat(amount),
-        policyId: parseInt(policyId),
-        method: method || "Online",
+        policyId: parseInt(policyId), // Ensure policyId is an Int
+        method: method || "Online", // Use 'method' from body, matches model
         status: status as PaymentStatus, // Cast to enum type
-        reference: reference || null,
+        reference: reference || null, // Use 'reference' from body, matches model
       },
     });
 

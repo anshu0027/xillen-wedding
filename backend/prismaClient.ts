@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, QuoteSource, PaymentStatus, StepStatus } from "@prisma/client";
+import { PrismaClient, QuoteSource, PaymentStatus, StepStatus } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 

@@ -80,8 +80,11 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ admin = false }) => {
   const currentStepIndex = steps.findIndex(step => pathname === step.path);
 
   return (
-    <div className="flex justify-center w-full py-4 px-2">
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-4">
+    // Removed mx-auto, w-[64%], and px-2.
+    // It will now inherit width/margins from its parent in CustomerLayout.
+    // py-4 is for its own internal vertical spacing.
+    <div className="py-4">
+      <div className="w-full bg-white rounded-xl shadow-lg p-4">
         <div className="flex flex-row gap-2">
           {steps.map((step, index) => (
             <React.Fragment key={step.path}>

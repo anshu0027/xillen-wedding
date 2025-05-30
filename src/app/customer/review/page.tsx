@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileCog, CheckCircle, Download, DollarSign, Shield, Calendar, User, AlertTriangle } from "lucide-react";
 import { useQuote } from "@/context/QuoteContext";
@@ -33,7 +33,7 @@ function ReviewItem({ label, value }: { label: string; value: React.ReactNode })
 }
 
 // Add validation for all required fields
-function validateAllFields(state) {
+function validateAllFields(state: Record<string, unknown>) {
     const requiredFields = [
         "eventType", "eventDate", "maxGuests", "coverageLevel", "liabilityCoverage",
         "venueName", "venueAddress1", "venueCountry", "venueCity", "venueState", "venueZip",
@@ -152,18 +152,8 @@ export default function Review() {
         }
     };
 
-    // Remove real API call for payment, make it dummy
-    useEffect(() => {
-        // If payment success param is present, show success message and save policy
-        if (paymentSuccessParam) {
-            console.log('Payment success detected from URL params');
-            setPaymentSuccess(true);
-            setShowPolicyNumber(true);
-        }
-    }, [paymentSuccessParam]);
-
     // Define savePolicyAndPayment function at component level
-    const savePolicyAndPayment = async () => {
+    const savePolicyAndPayment = useCallback(async () => {
         console.log('Attempting to save policy and payment');
         console.log('Payment success:', paymentSuccess);
         console.log('Show policy number:', showPolicyNumber);
@@ -250,7 +240,7 @@ export default function Review() {
                                 amount: state.totalPremium,
                                 policyId,
                                 method: "Dummy",
-                                status: "Completed"
+                                status: "SUCCESS" // Use the enum value
                             })
                         });
 
@@ -274,8 +264,8 @@ export default function Review() {
             } finally {
                 setSavingPolicy(false);
             }
-        }
-    };
+        } // Only include dependencies that are stable or state values read inside
+    }, [state, paymentSuccess, policySaved, showPolicyNumber, policyNumberRef]); // Added dependencies for useCallback
 
     // Effect to save policy after payment success
     useEffect(() => {
@@ -283,7 +273,7 @@ export default function Review() {
             console.log('Payment success detected, saving policy');
             savePolicyAndPayment();
         }
-    }, [paymentSuccess, showPolicyNumber, policySaved, savingPolicy]);
+    }, [paymentSuccess, showPolicyNumber, policySaved, savingPolicy, savePolicyAndPayment]);
 
     return (
         <>
@@ -491,8 +481,7 @@ export default function Review() {
                                         <Button
                                             variant="secondary"
                                             onClick={handleBack}
-                                            className="transition-transform duration-150 hover:scale-105"
-                                        >
+                                            className="transition-transform duration-150 hover:scale-105">
                                             Back to Policyholder
                                         </Button>
                                     </div>

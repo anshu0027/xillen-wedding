@@ -1,22 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma, PaymentStatus } from "../../../../backend/prismaClient";
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url, "http://localhost");
-    const id = url.searchParams.get("id");
+    const id = url.searchParams.get("id"); // payment id (optional)
+    const policyId = url.searchParams.get("policyId");
+    const quoteId = url.searchParams.get("quoteId");
+
     if (id) {
+      // Fetch payment by payment id (existing logic)
       const payment = await prisma.payment.findUnique({
         where: { id: Number(id) },
-        include: { policy: { include: { quote: true } } },
+        include: {
+          policy: {
+            include: {
+              quote: {
+                include: {
+                  policyHolder: true, // Include PolicyHolder details
+                },
+              },
+            },
+          },
+        },
       });
       if (!payment)
         return NextResponse.json(
           { error: "Payment not found" },
           { status: 404 }
         );
+
+      // Map status for frontend
       const mappedPayment = {
         ...payment,
         status:
@@ -28,11 +42,64 @@ export async function GET(req: NextRequest) {
       };
       return NextResponse.json({ payment: mappedPayment });
     }
-    const payments = await prisma.payment.findMany({
-      include: { policy: { include: { quote: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-    // Map status values for frontend compatibility
+
+    // If policyId or quoteId filter is present, fetch accordingly:
+    let payments;
+    if (policyId) {
+      payments = await prisma.payment.findMany({
+        where: { policyId: Number(policyId) },
+        include: {
+          policy: {
+            include: {
+              quote: {
+                include: {
+                  policyHolder: true, // Include PolicyHolder details
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } else if (quoteId) {
+      payments = await prisma.payment.findMany({
+        where: {
+          policy: {
+            quoteId: Number(quoteId),
+          },
+        },
+        include: {
+          policy: {
+            include: {
+              quote: {
+                include: {
+                  policyHolder: true, // Include PolicyHolder details
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } else {
+      // Default: fetch all payments
+      payments = await prisma.payment.findMany({
+        include: {
+          policy: {
+            include: {
+              quote: {
+                include: {
+                  policyHolder: true, // Include PolicyHolder details
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    // Map status for frontend
     const mappedPayments = payments.map((payment) => ({
       ...payment,
       status:
@@ -42,8 +109,10 @@ export async function GET(req: NextRequest) {
           ? "Failed"
           : payment.status,
     }));
+
     return NextResponse.json({ payments: mappedPayments });
   } catch (error) {
+    console.error("GET /api/payment error:", error);
     return NextResponse.json(
       { error: "Failed to fetch payments" },
       { status: 500 }
@@ -53,56 +122,43 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, policyId, method, status } = await req.json();
-    if (!amount || !policyId) {
+    const body = await req.json();
+    const {
+      amount,
+      policyId,
+      method,
+      status, // Expecting "SUCCESS", "PENDING", or "FAILED" from client
+      reference,
+    } = body;
+
+    if (!amount || !policyId || !status) {
       return NextResponse.json(
-        { error: "Missing amount or policyId" },
+        { error: "Missing required fields (amount, policyId, status)" },
         { status: 400 }
       );
     }
+
+    // Validate status against enum
+    if (!Object.values(PaymentStatus).includes(status as PaymentStatus)) {
+      return NextResponse.json(
+        { error: `Invalid payment status: ${status}` },
+        { status: 400 }
+      );
+    }
+
     const payment = await prisma.payment.create({
       data: {
         amount: parseFloat(amount),
-        policyId: Number(policyId),
-        method: method || "Cash",
-        status: status || "Completed",
+        policyId: parseInt(policyId),
+        method: method || "Online",
+        status: status as PaymentStatus, // Cast to enum type
+        reference: reference || null,
       },
     });
-    return NextResponse.json({ payment });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to create payment" },
-      { status: 500 }
-    );
-  }
-}
 
-export async function PUT(req: NextRequest) {
-  try {
-    const body = await req.json();
-    // TODO: Implement update logic
-    return NextResponse.json({ error: "Not implemented." }, { status: 501 });
+    return NextResponse.json({ payment }, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to update payment" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const url = new URL(req.url, "http://localhost");
-    const id = url.searchParams.get("id");
-    if (!id) {
-      return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    }
-    // TODO: Cascade delete as needed
-    return NextResponse.json({ error: "Not implemented." }, { status: 501 });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete payment" },
-      { status: 500 }
-    );
+    console.error("POST /api/payment error:", error);
+    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
   }
 }

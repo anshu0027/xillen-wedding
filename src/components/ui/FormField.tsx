@@ -25,7 +25,7 @@ const FormField: React.FC<FormFieldProps> = ({
 
   return (
     <div className={clsx('mb-4', className)}>
-      <div className="flex items-center mb-2 gap-2">
+      <div className="flex items-center justify-center mb-2 gap-2">
         <label
           htmlFor={htmlFor}
           className={clsx(
@@ -53,9 +53,9 @@ const FormField: React.FC<FormFieldProps> = ({
           </div>
         )}
       </div>
-      <div>{children}</div>
+      <div className="flex justify-center">{children}</div>
       {error && (
-        <p className="mt-2 text-sm font-semibold text-red-600 bg-red-50 rounded px-2 py-1 w-fit">{error}</p>
+        <p className="mt-2 text-sm font-semibold text-red-600 bg-red-50 rounded px-2 py-1 w-fit mx-auto">{error}</p>
       )}
     </div>
   );

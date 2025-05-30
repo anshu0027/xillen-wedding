@@ -28,8 +28,8 @@ function flattenPolicy(policy: any) {
         honoree1LastName: policy.event?.honoree1LastName || '',
         honoree2FirstName: policy.event?.honoree2FirstName || '',
         honoree2LastName: policy.event?.honoree2LastName || '',
-        ceremonyLocationType: policy.event?.ceremonyLocationType || '',
-        indoorOutdoor: policy.event?.indoorOutdoor || '',
+        ceremonyLocationType: policy.event?.venue?.ceremonyLocationType || '',
+        indoorOutdoor: policy.event?.venue?.indoorOutdoor || '',
         venueName: policy.event?.venue?.name || '',
         venueAddress1: policy.event?.venue?.address1 || '',
         venueAddress2: policy.event?.venue?.address2 || '',
@@ -58,7 +58,7 @@ function flattenPolicy(policy: any) {
         liabilityPremium: policy.liabilityPremium,
         liquorLiabilityPremium: policy.liquorLiabilityPremium,
         status: policy.status,
-        policyId: policy.policyId || policy.id,
+        policyId: policy.policy?.id || policy.id,
         policyNumber: policy.policyNumber,
         pdfUrl: policy.pdfUrl,
     };
@@ -80,12 +80,13 @@ export default function EditPolicy() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.quote) {
+                    console.log('Found policy by quote number: ',data.quote)
                     setFormState(flattenPolicy(data.quote));
                     return;
                 }
             }
             // If not found, try to fetch by policy id (for direct policies)
-            res = await fetch(`/api/policy?id=${id}`);
+            res = await fetch(`/api/policy?policyId=${id}`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.policy) {
@@ -110,6 +111,7 @@ export default function EditPolicy() {
         }
     };
     // Validation functions for each step (implement as needed)
+    console.log(formState)
     const validateStep1 = () => {
         const newErrors: Record<string, string> = {};
         if (!formState.residentState) newErrors.residentState = 'Required';
@@ -160,7 +162,7 @@ export default function EditPolicy() {
             const payload = {
                 ...formState,
                 quoteNumber: formState.quoteNumber,
-                policyId: formState.policyId || id,
+                policyId: formState.policyId,
             };
             const response = await fetch("/api/policy", {
                 method: "PUT",
@@ -193,13 +195,13 @@ export default function EditPolicy() {
     // Stepper UI
     return (
         <div className="p-6">
-            <div className="flex items-center mb-6">
-                <Button variant="outline" size="sm" onClick={() => router.push('/admin/policies')}>Back to Policies</Button>
-                <h1 className="text-2xl font-bold text-gray-900 ml-4">Edit Policy</h1>
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
+                <h1 className="text-2xl text-center sm:text-left font-bold text-gray-900 order-1 sm:order-none">Edit Quote</h1>
+                <Button className="w-full sm:w-auto order-2 sm:order-none" variant="outline" size="sm" onClick={() => router.push('/admin/policies')}>Back to Policies</Button>
             </div>
-            <div className="mb-8 flex gap-4">
+            <div className="mb-8 flex flex-row max-w-4xl justify-center mx-auto items-center gap-2 sm:gap-3 md:gap-10">
                 {[1, 2, 3, 4].map(s => (
-                    <Button key={s} variant={step === s ? 'primary' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
+                    <Button key={s} className="flex-1 min-w-0 text-center rounded-full md:flex-initial md:w-48" variant={step === s ? 'primary' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
                 ))}
             </div>
             {step === 1 && (

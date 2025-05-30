@@ -346,6 +346,198 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    console.log("Incoming quote PUT:", body);
+    const {
+      quoteNumber, // Expect quoteNumber to identify the quote to update
+      // step, // 'step' might not be relevant for PUT, or could be used to set status
+      source = "CUSTOMER", // Default or from payload
+      // paymentStatus, // paymentStatus is usually handled by payment events or conversion
+      ...fields
+    } = body;
+
+    if (!quoteNumber) {
+      return NextResponse.json(
+        { error: "quoteNumber is required to update a quote." },
+        { status: 400 }
+      );
+    }
+
+    const existingQuote = await prisma.quote.findUnique({
+      where: { quoteNumber },
+      include: { event: { include: { venue: true } }, policyHolder: true, user: true },
+    });
+
+    if (!existingQuote) {
+      return NextResponse.json(
+        { error: `Quote with number ${quoteNumber} not found.` },
+        { status: 404 }
+      );
+    }
+
+    // --- USER HANDLING (similar to POST, in case email is updated) ---
+    let user;
+    if (fields.email) {
+      user = await prisma.user.findUnique({ where: { email: fields.email } });
+      if (!user) {
+        // If admin is changing email to a new user, create that user.
+        // Or, decide if email changes should only link to existing users.
+        // For simplicity, let's assume if email is provided, we find or create.
+        user = await prisma.user.create({
+          data: {
+            email: fields.email,
+            firstName: fields.firstName || existingQuote.policyHolder?.firstName || "",
+            lastName: fields.lastName || existingQuote.policyHolder?.lastName || "",
+            phone: fields.phone || existingQuote.policyHolder?.phone || "",
+          },
+        });
+      }
+    } else if (existingQuote.user) {
+        user = existingQuote.user; // Keep existing user if email not in payload
+    } else {
+        // This case should ideally not happen if quotes always have users.
+        // If it can, handle appropriately, maybe error or use a default.
+         return NextResponse.json(
+        { error: "User email is missing and no existing user linked to quote." },
+        { status: 400 }
+      );
+    }
+
+    // --- FIELD CONVERSION & VALIDATION (re-use from POST or adapt) ---
+    function parseLiabilityCoverage(
+      val: string | number | undefined | null
+    ): number {
+      if (
+        val === undefined ||
+        val === null ||
+        val === "none" ||
+        isNaN(Number(val))
+      )
+        return 0;
+      return parseFloat(val as string);
+    }
+
+    const quoteFieldsToUpdate: any = {
+      residentState: fields.residentState,
+      email: fields.email, // This will be the quote's primary email
+      coverageLevel:
+        fields.coverageLevel !== undefined
+          ? parseInt(fields.coverageLevel)
+          : undefined,
+      liabilityCoverage: parseLiabilityCoverage(fields.liabilityCoverage),
+      liquorLiability:
+        fields.liquorLiability === "true" || fields.liquorLiability === true,
+      covidDisclosure:
+        fields.covidDisclosure === "true" || fields.covidDisclosure === true,
+      specialActivities:
+        fields.specialActivities === "true" ||
+        fields.specialActivities === true,
+      totalPremium:
+        fields.totalPremium !== undefined
+          ? parseFloat(fields.totalPremium)
+          : undefined,
+      basePremium:
+        fields.basePremium !== undefined
+          ? parseFloat(fields.basePremium)
+          : undefined,
+      liabilityPremium:
+        fields.liabilityPremium !== undefined
+          ? parseFloat(fields.liabilityPremium)
+          : undefined,
+      liquorLiabilityPremium:
+        fields.liquorLiabilityPremium !== undefined
+          ? parseFloat(fields.liquorLiabilityPremium)
+          : undefined,
+      source: source === "ADMIN" ? QuoteSource.ADMIN : QuoteSource.CUSTOMER, // Determine source
+      status: fields.status || StepStatus.COMPLETE, // Default to COMPLETE or take from payload
+      user: { connect: { id: user.id } },
+    };
+
+    // Event fields
+    const eventFieldsToUpdate = {
+      eventType: fields.eventType,
+      eventDate: fields.eventDate ? new Date(fields.eventDate) : undefined,
+      maxGuests: fields.maxGuests ? parseInt(fields.maxGuests.toString()) : undefined,
+      honoree1FirstName: fields.honoree1FirstName,
+      honoree1LastName: fields.honoree1LastName,
+      honoree2FirstName: fields.honoree2FirstName,
+      honoree2LastName: fields.honoree2LastName,
+    };
+
+    const venueFieldsToUpdate = {
+      name: fields.venueName,
+      address1: fields.venueAddress1,
+      address2: fields.venueAddress2,
+      country: fields.venueCountry,
+      city: fields.venueCity,
+      state: fields.venueState,
+      zip: fields.venueZip,
+      ceremonyLocationType: fields.ceremonyLocationType,
+      indoorOutdoor: fields.indoorOutdoor,
+      venueAsInsured: fields.venueAsInsured,
+    };
+
+    const policyHolderFieldsToUpdate = {
+      firstName: fields.firstName,
+      lastName: fields.lastName,
+      phone: fields.phone,
+      relationship: fields.relationship,
+      hearAboutUs: fields.hearAboutUs,
+      address: fields.address,
+      country: fields.country,
+      city: fields.city,
+      state: fields.state,
+      zip: fields.zip,
+      legalNotices: fields.legalNotices,
+      completingFormName: fields.completingFormName,
+    };
+
+    // --- QUOTE UPDATE LOGIC ---
+    const updatedQuote = await prisma.quote.update({
+      where: { quoteNumber },
+      data: {
+        ...quoteFieldsToUpdate,
+        event: {
+          upsert: { // Use upsert for event and venue if they might not exist (though for an update they should)
+            create: { ...eventFieldsToUpdate, venue: { create: venueFieldsToUpdate } },
+            update: {
+              ...eventFieldsToUpdate,
+              venue: existingQuote.event?.venue
+                ? { update: venueFieldsToUpdate }
+                : { create: venueFieldsToUpdate }, // Should ideally be just update
+            },
+          },
+        },
+        policyHolder: {
+          upsert: { // Use upsert for policyHolder
+            create: policyHolderFieldsToUpdate,
+            update: policyHolderFieldsToUpdate,
+          },
+        },
+      },
+      include: {
+        event: { include: { venue: true } },
+        policyHolder: true,
+        policy: true, // Include policy if it's linked
+        user: true,
+      },
+    });
+
+    return NextResponse.json({
+      message: "Quote updated successfully",
+      quote: updatedQuote,
+    });
+  } catch (error) {
+    console.error("PUT /api/quote/step error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Server error during quote update" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url, "http://localhost");

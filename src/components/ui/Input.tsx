@@ -21,7 +21,7 @@ const Input: React.FC<InputProps> = ({
       )}
       <input
         className={clsx(
-          'block w-full rounded-xl shadow-sm text-base font-medium transition-all',
+          'block w-72 rounded-xl shadow-sm text-base font-medium transition-all',
           'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
           error
             ? 'border-2 border-red-400 text-red-900 placeholder-red-300 bg-red-50'

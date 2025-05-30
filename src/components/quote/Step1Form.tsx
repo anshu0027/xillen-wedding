@@ -1,9 +1,8 @@
 import React from "react";
-import { AlertCircle, DollarSign, Shield } from "lucide-react";
-import Card from "@/components/ui/Card";
+import { AlertCircle, DollarSign, Shield, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
-import Select from "@/components/ui/Select";
+import Input from "@/components/ui/Input"; // Added Input
 import Checkbox from "@/components/ui/Checkbox";
 import DatePicker from "@/components/ui/DatePicker";
 import {
@@ -17,7 +16,7 @@ import {
     LIQUOR_LIABILITY_PREMIUMS_NEW
 } from "@/utils/constants";
 
-export default function Step1Form({ state, errors, onChange, onValidate, onContinue, showQuoteResults, handleCalculateQuote, onSave }) {
+export default function Step1Form({ state, errors, onChange, onValidate, onContinue, showQuoteResults, handleCalculateQuote, onSave, isCustomerEdit = false }) {
     const selectedDate = state.eventDate ? new Date(state.eventDate) : null;
     const minDate = new Date();
     minDate.setHours(minDate.getHours() + 48);
@@ -26,77 +25,103 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
     const isLiquorLiabilityDisabled = state.liabilityCoverage === 'none';
 
     return (
-        <Card
-            title="Get Your Wedding Insurance Quote"
-            subtitle="Tell us about your event to receive an instant quote"
-            icon={<Shield size={28} className="text-indigo-600" />}
-            className="mb-10 shadow-2xl border-0 bg-white/90"
-        >
-            <div className="space-y-10 px-2 sm:px-4 md:px-8">
+        // Replaced Card with div and merged styles
+        <div className="w-full max-w-4xl mx-auto mb-10 text-center shadow-2xl border-0 bg-white/90 rounded-2xl p-8 sm:p-10 md:p-12">
+            <div className="mb-8">
+                <p className="text-3xl md:text-4xl font-extrabold text-blue-900 drop-shadow text-center">Get Your Wedding Insurance Quote</p>
+                <p className="text-lg md:text-xl text-blue-700 font-medium text-center">Tell us about your event to receive an instant quote</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 px-2 sm:px-4 md:px-8">
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Policy Holder's Resident State</span>}
+                    label="Policy Holder's Resident State"
                     htmlFor="residentState"
                     required
                     error={errors.residentState}
                     tooltip="This is the state where the policy holder (person purchasing the insurance) legally resides."
-                    className="mb-6"
                 >
-                    <Select
-                        id="residentState"
-                        options={US_STATES}
-                        value={state.residentState}
-                        onChange={value => onChange('residentState', value)}
-                        placeholder="Select your state"
-                        error={!!errors.residentState}
-                        className="w-full"
-                    />
+                    <div className="relative w-72">
+                        <select
+                            id="residentState"
+                            value={state.residentState}
+                            onChange={e => onChange('residentState', e.target.value)}
+                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.residentState ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                        >
+                            <option value="">Select your state</option>
+                            {US_STATES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                            size={16}
+                        />
+                    </div>
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Event Type</span>}
+                    label="Event Type"
                     htmlFor="eventType"
                     required
                     error={errors.eventType}
                     tooltip="The type of private event you're planning. This helps determine appropriate coverage."
-                    className="mb-6"
                 >
-                    <Select
-                        id="eventType"
-                        options={EVENT_TYPES}
-                        value={state.eventType}
-                        onChange={value => onChange('eventType', value)}
-                        placeholder="Select event type"
-                        error={!!errors.eventType}
-                        className="w-full"
-                    />
+                    <div className="relative w-72">
+                        <select
+                            id="eventType"
+                            value={state.eventType}
+                            onChange={e => onChange('eventType', e.target.value)}
+                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.eventType ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                        >
+                            <option value="">Select event type</option>
+                            {EVENT_TYPES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                            size={16}
+                        />
+                    </div>
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Maximum Number of Guests</span>}
+                    label="Maximum Number of Guests"
                     htmlFor="maxGuests"
                     required
                     error={errors.maxGuests}
                     tooltip="The maximum number of guests expected to attend. This affects liability premiums."
-                    className="mb-6"
                 >
-                    <Select
-                        id="maxGuests"
-                        options={GUEST_RANGES}
-                        value={state.maxGuests}
-                        onChange={value => onChange('maxGuests', value)}
-                        placeholder="Select guest count range"
-                        error={!!errors.maxGuests}
-                        className="w-full"
-                    />
+                    <div className="relative w-72">
+                        <select
+                            id="maxGuests"
+                            value={state.maxGuests}
+                            onChange={e => onChange('maxGuests', e.target.value)}
+                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.maxGuests ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                        >
+                            <option value="">Select guest count range</option>
+                            {GUEST_RANGES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                            size={16}
+                        />
+                    </div>
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Event Date</span>}
+                    label="Event Date"
                     htmlFor="eventDate"
                     required
                     error={errors.eventDate}
                     tooltip="The primary date of your event. Must be at least 48 hours in the future."
-                    className="mb-6"
                 >
                     <DatePicker
                         selected={selectedDate}
@@ -105,97 +130,121 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                         maxDate={maxDate}
                         placeholderText="Select event date"
                         error={!!errors.eventDate}
-                        className="w-full"
+                        
                     />
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Email Address</span>}
+                    label="Email Address"
                     htmlFor="email"
                     required
                     error={errors.email}
                     tooltip="We'll send your quote and policy documents to this email."
-                    className="mb-6"
                 >
-                    <input
-                        id="email"
-                        type="email"
-                        value={state.email || ''}
-                        onChange={e => onChange('email', e.target.value)}
-                        placeholder="you@email.com"
-                        className="w-full p-2 border rounded"
-                        required
-                    />
+                    <div className="w-72"> {/* This div will be centered by FormField */}
+                        <Input
+                            id="email"
+                            type="email"
+                            value={state.email || ''}
+                            onChange={e => onChange('email', e.target.value)}
+                            placeholder="you@email.com"
+                            error={!!errors.email}
+                            required
+                            className="text-center" /* This styles the actual input text; wrapper handles width/centering */
+                        />
+                    </div>
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Core Coverage Level</span>}
+                    label="Core Coverage Level"
                     htmlFor="coverageLevel"
                     required
                     error={errors.coverageLevel}
                     tooltip="Select the amount of cancellation/postponement coverage needed. Higher levels provide more protection for deposits, attire, gifts, etc."
-                    className="mb-6"
                 >
-                    <Select
-                        id="coverageLevel"
-                        options={COVERAGE_LEVELS.map(level => ({ value: level.value, label: level.label }))}
-                        value={state.coverageLevel?.toString() || ''}
-                        onChange={value => onChange('coverageLevel', parseInt(value))}
-                        placeholder="Select coverage level"
-                        error={!!errors.coverageLevel}
-                        className="w-full"
-                    />
+                    <div className="relative w-72">
+                        <select
+                            id="coverageLevel"
+                            value={state.coverageLevel?.toString() || ''}
+                            onChange={e => onChange('coverageLevel', parseInt(e.target.value))}
+                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.coverageLevel ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                        >
+                            <option value="">Select coverage level</option>
+                            {COVERAGE_LEVELS.map(level => (
+                                <option key={level.value} value={level.value}>
+                                    {level.label}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                            size={16}
+                        />
+                    </div>
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Liability Coverage</span>}
+                    label="Liability Coverage"
                     htmlFor="liabilityCoverage"
                     tooltip="Protects against third-party bodily injury and property damage claims. This is often required by venues."
-                    className="mb-6"
                 >
-                    <Select
-                        id="liabilityCoverage"
-                        options={LIABILITY_OPTIONS.map(option => ({
-                            ...option,
-                            className: option.isNew ? "text-red-400" : undefined
-                        }))}
-                        value={state.liabilityCoverage}
-                        onChange={value => onChange('liabilityCoverage', value)}
-                        placeholder="Select liability coverage"
-                        error={!!errors.liabilityCoverage}
-                        renderOption={(option) => (
-                            <span className={option.isNew ? "text-red-400" : undefined}>{option.label}</span>
-                        )}
-                        className="w-full"
-                    />
+                    <div className="relative w-72">
+                        <select
+                            id="liabilityCoverage"
+                            value={state.liabilityCoverage}
+                            onChange={e => onChange('liabilityCoverage', e.target.value)}
+                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.liabilityCoverage ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                        >
+                            <option value="">Select liability coverage</option>
+                            {LIABILITY_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value} className={option.isNew ? "text-red-400" : ""}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                            size={16}
+                        />
+                    </div>
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Host Liquor Liability</span>}
+                    label="Host Liquor Liability"
                     htmlFor="liquorLiability"
                     tooltip="Additional coverage for alcohol-related incidents. Only available if you select Liability Coverage."
-                    className="mb-6"
+                    error={errors.liquorLiability}
                 >
                     <Checkbox
                         id="liquorLiability"
                         label={
-                            <span className="font-medium text-sm sm:text-base">
-                                Yes, add Host Liquor Liability coverage {(!isLiquorLiabilityDisabled && state.maxGuests) ? `(+$${LIABILITY_OPTIONS.find(o => o.value === state.liabilityCoverage && o.isNew) ? LIQUOR_LIABILITY_PREMIUMS_NEW[state.maxGuests] : LIQUOR_LIABILITY_PREMIUMS[state.maxGuests]})` : ''}
+                            <span className={`font-medium text-sm sm:text-base ${isLiquorLiabilityDisabled ? 'text-gray-400' : ''}`}>
+                                Yes, add Host Liquor Liability coverage{' '}
+                                {!isLiquorLiabilityDisabled && state.maxGuests
+                                    ? `(+$${LIABILITY_OPTIONS.find(o => o.value === state.liabilityCoverage && o.isNew)
+                                        ? LIQUOR_LIABILITY_PREMIUMS_NEW[state.maxGuests]
+                                        : LIQUOR_LIABILITY_PREMIUMS[state.maxGuests]})`
+                                    : ''}
                             </span>
                         }
                         checked={state.liquorLiability}
                         onChange={checked => onChange('liquorLiability', checked)}
                         disabled={isLiquorLiabilityDisabled}
-                        description={isLiquorLiabilityDisabled ? "You must select Liability Coverage to add Host Liquor Liability" : "Provides coverage for alcohol-related incidents if alcohol is served at your event"}
-                        className="w-full"
+                        description={isLiquorLiabilityDisabled
+                                ? 'You must select Liability Coverage to add Host Liquor Liability'
+                                : 'Provides coverage for alcohol-related incidents if alcohol is served at your event'}
+                        /* className="mx-auto" removed as FormField will center the Checkbox component */
+                        error={!!errors.liquorLiability}
                     />
                 </FormField>
 
                 <FormField
-                    label={<span className="font-semibold text-gray-800 text-sm sm:text-base">Special Activities</span>}
+                    label="Special Activities"
                     htmlFor="specialActivities"
-                    tooltip="Some high-risk activities are excluded from coverage. Check this box if your event will include any special activities."
-                    className="mb-6"
+                    tooltip={isCustomerEdit 
+                        ? "Contact admin to edit this" 
+                        : "Some high-risk activities are excluded from coverage. Check this box if your event will include any special activities."}
+                    error={errors.specialActivities}
                 >
                     <Checkbox
                         id="specialActivities"
@@ -203,10 +252,15 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                         checked={state.specialActivities}
                         onChange={checked => onChange('specialActivities', checked)}
                         description="Examples: fireworks, bounce houses, live animals, etc."
-                        className="w-full"
+                        disabled={isCustomerEdit}
+                        /* className="mx-auto" removed as FormField will center the Checkbox component */
+                        error={!!errors.specialActivities}
                     />
                 </FormField>
+            </div>
 
+            {/* COVID Disclosure - Full Width Block */}
+            <div className="px-2 sm:px-4 md:px-8 mt-8"> {/* Added mt-8 for spacing from grid */}
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4 mt-8 flex flex-col sm:flex-row items-start gap-3">
                     <AlertCircle size={20} className="text-yellow-500 mt-1" />
                     <div>
@@ -228,7 +282,8 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                         </FormField>
                     </div>
                 </div>
-
+            </div>
+            <div className="px-2 sm:px-4 md:px-8"> {/* Wrapper for buttons to align with padding */}
                 <div className="flex flex-col md:flex-row justify-center mt-10 gap-4 w-full">
                     <Button
                         variant="primary"
@@ -253,6 +308,6 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                     )}
                 </div>
             </div>
-        </Card>
+        </div>
     );
 }

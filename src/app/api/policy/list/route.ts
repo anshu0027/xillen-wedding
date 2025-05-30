@@ -9,36 +9,47 @@ export async function GET(req: NextRequest) {
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const pageSize = parseInt(url.searchParams.get("pageSize") || "10", 10);
     const skip = (page - 1) * pageSize;
+
     const [policies, total] = await Promise.all([
       prisma.policy.findMany({
-        include: { quote: true },
+        include: {
+          quote: {
+            include: {
+              policyHolder: true,
+              event: true,// Include policyHolder details from the quote
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
       }),
       prisma.policy.count(),
     ]);
-    // Flatten the data for the frontend and use the correct prefix (PCI/PAI)
+
+    // Format policies for frontend
     const policiesWithQuote = policies.map((p) => {
       if (p.quote) {
         return {
           ...p.quote,
-          quoteNumber: p.quote.quoteNumber, // Already correct prefix from DB
+          quoteNumber: p.quote.quoteNumber,
           policyId: p.id,
+          policyNumber: p.policyNumber,
+          email: p.quote.email,
           policyCreatedAt: p.createdAt,
           pdfUrl: p.pdfUrl,
         };
       } else {
-        // For direct policies with no quote
         return {
           policyId: p.id,
           policyCreatedAt: p.createdAt,
           pdfUrl: p.pdfUrl,
           policyNumber: p.policyNumber,
-          // Add any other direct policy fields you want to show
+          // Add more direct policy fields here if needed
         };
       }
     });
+
     return NextResponse.json({ policies: policiesWithQuote, total });
   } catch (error) {
     console.error("GET /api/policy/list error:", error);
@@ -52,13 +63,16 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const url = new URL(req.url, "http://localhost");
-    const policyId = url.searchParams.get("policyId");
-    if (!policyId) {
+    const policyIdStr = url.searchParams.get("policyId");
+
+    if (!policyIdStr) {
       return NextResponse.json({ error: "Missing policyId" }, { status: 400 });
     }
-    // Find the policy and related quote
+    const policyId = Number(policyIdStr);
+    console.log("Deleting policy with ID:", policyId);
+
     const policy = await prisma.policy.findUnique({
-      where: { id: Number(policyId) },
+      where: { id: policyId },
       include: {
         quote: {
           include: {
@@ -68,46 +82,37 @@ export async function DELETE(req: NextRequest) {
         },
       },
     });
+
     if (!policy) {
-        return NextResponse.json(
-          { message: "Policy not found, nothing updated." },
-        );
+      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
-    // If the policy has no related quote, just delete the policy
-    if (!policy.quote) {
-      const deleted = await prisma.policy.delete({
-        where: { id: Number(policyId) },
-      });
-      return NextResponse.json({
-        message: "Policy deleted (no related quote)",
-        deleted,
-      });
+
+    // Helper to safely delete if id exists
+    async function safeDelete(tx, modelName: keyof typeof prisma, id?: number) {
+      if (id !== undefined && id !== null) {
+        await tx[modelName].delete({ where: { id } });
+      }
     }
-    // Always delete the policy itself first to avoid foreign key constraint errors
-    const deleted = await prisma.policy.delete({
-      where: { id: Number(policyId) },
+
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.deleteMany({ where: { policyId } });
+
+      await safeDelete(tx, "venue", policy.quote?.event?.venue?.id);
+      await safeDelete(tx, "event", policy.quote?.event?.id);
+      await safeDelete(tx, "policyHolder", policy.quote?.policyHolder?.id);
+      await safeDelete(tx, "quote", policy.quote?.id);
+
+      await tx.policy.delete({ where: { id: policyId } });
     });
-    // Now delete related quote, event, venue, policyHolder if they exist
-    if (policy.quote?.event?.venue) {
-      await prisma.venue.delete({ where: { id: policy.quote.event.venue.id } });
-    }
-    if (policy.quote?.event) {
-      await prisma.event.delete({ where: { id: policy.quote.event.id } });
-    }
-    if (policy.quote?.policyHolder) {
-      await prisma.policyHolder.delete({
-        where: { id: policy.quote.policyHolder.id },
-      });
-    }
-    if (policy.quote) {
-      await prisma.quote.delete({ where: { id: policy.quote.id } });
-    }
+
     return NextResponse.json({
-      message: "Policy and related records deleted",
-      deleted,
+      message: "Policy and related records deleted successfully",
     });
   } catch (error) {
-    console.error("DELETE /api/policy/list error:", error);
+    console.error("DELETE /api/policy error:", error);
+    if (error instanceof Error) {
+      console.error(error.stack);
+    }
     return NextResponse.json(
       { error: "Failed to delete policy" },
       { status: 500 }

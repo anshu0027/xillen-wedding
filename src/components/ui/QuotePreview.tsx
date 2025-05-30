@@ -17,7 +17,7 @@ const QuotePreview: React.FC = () => {
     }
 
     return (
-        <aside className="w-full max-w-xs sticky top-6">
+        <aside className="w-full max-w-xl sticky top-6">
             <div className="rounded-2xl shadow-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6">
                 <div className="flex items-center gap-2 mb-4">
                     <FileText size={24} className="text-blue-500" />

@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDatePicker from 'react-datepicker';
-import { Calendar } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
 import clsx from 'clsx';
 
@@ -35,10 +34,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
 
   return (
-    <div className="relative">
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-        <Calendar size={16} />
-      </div>
+    <div className={clsx("relative", className)}> {/* Apply the passed className to the wrapper div */}
       <ReactDatePicker
         selected={selected}
         onChange={onChange}
@@ -46,14 +42,13 @@ const DatePicker: React.FC<DatePickerProps> = ({
         maxDate={maxDate}
         placeholderText={placeholderText}
         dateFormat="MM/dd/yyyy"
-        className={clsx(
-          "block w-full rounded-md shadow-sm pl-10 pr-3 py-2 transition-colors",
+        className={clsx( // Styles for the input element itself
+          "block w-full rounded-lg shadow-sm py-2 px-14 transition-colors text-center border border-gray-300", // Ensure input text is centered, input takes full width, added border-2, changed pl-10 to pl-4, rounded-md to rounded-xl
           "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
           error 
-            ? "border-red-300 text-red-900 placeholder-red-300" 
-            : "border-gray-300 text-gray-900 placeholder-gray-400",
-          disabled && "bg-gray-100 text-gray-500 cursor-not-allowed",
-          className
+            ? "border-red-400 text-red-900 placeholder-red-300 bg-red-50"  // Matched Input.tsx error style
+            : "border-gray-200 text-gray-900 placeholder-gray-400", // Matched Input.tsx default style
+          disabled && "bg-gray-100 text-gray-500 cursor-not-allowed"
         )}
         disabled={disabled}
       />

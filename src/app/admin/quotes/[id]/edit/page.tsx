@@ -37,8 +37,6 @@ interface FormState {
     firstName: string;
     lastName: string;
     email: string;
-    confirmEmail: string;
-    additionalEmail: string;
     phone: string;
     relationship: string;
     hearAboutUs: string;
@@ -65,6 +63,7 @@ function flattenQuote(quote: any): FormState {
         eventDate: quote.event?.eventDate || '',
         maxGuests: quote.event?.maxGuests || '',
         coverageLevel: quote.coverageLevel ?? null,
+        email: quote?.email || '',
         liabilityCoverage: quote.liabilityCoverage ?? '',
         liquorLiability: quote.liquorLiability ?? false,
         covidDisclosure: quote.covidDisclosure ?? false,
@@ -74,7 +73,7 @@ function flattenQuote(quote: any): FormState {
         honoree1LastName: quote.event?.honoree1LastName || '',
         honoree2FirstName: quote.event?.honoree2FirstName || '',
         honoree2LastName: quote.event?.honoree2LastName || '',
-        ceremonyLocationType: quote.event?.ceremonyLocationType || '',
+        ceremonyLocationType: quote.event.venue?.ceremonyLocationType || '',
         indoorOutdoor: quote.event?.indoorOutdoor || '',
         venueName: quote.event?.venue?.name || '',
         venueAddress1: quote.event?.venue?.address1 || '',
@@ -87,9 +86,6 @@ function flattenQuote(quote: any): FormState {
         // Step 3
         firstName: quote.policyHolder?.firstName || '',
         lastName: quote.policyHolder?.lastName || '',
-        email: quote.policyHolder?.email || '',
-        confirmEmail: quote.policyHolder?.confirmEmail || '',
-        additionalEmail: quote.policyHolder?.additionalEmail || '',
         phone: quote.policyHolder?.phone || '',
         relationship: quote.policyHolder?.relationship || '',
         hearAboutUs: quote.policyHolder?.hearAboutUs || '',
@@ -122,6 +118,7 @@ export default function EditQuote() {
     useEffect(() => {
         async function fetchQuote() {
             const res = await fetch(`/api/quote/step?quoteNumber=${id}`);
+            // console.log(res);
             if (res.ok) {
                 const data = await res.json();
                 setFormState(flattenQuote(data.quote));
@@ -143,6 +140,7 @@ export default function EditQuote() {
             });
         }
     };
+    console.log(formState)
     // Validation functions for each step (implement as needed)
     const validateStep1 = () => {
         const newErrors: Record<string, string> = {};
@@ -150,6 +148,7 @@ export default function EditQuote() {
         if (!formState.eventType) newErrors.eventType = 'Required';
         if (!formState.maxGuests) newErrors.maxGuests = 'Required';
         if (!formState.eventDate) newErrors.eventDate = 'Required';
+        if (!formState.email) newErrors.email = 'Required';
         if (!formState.coverageLevel) newErrors.coverageLevel = 'Required';
         if (!formState.covidDisclosure) newErrors.covidDisclosure = 'Required';
         setErrors(newErrors);
@@ -174,9 +173,6 @@ export default function EditQuote() {
         const newErrors: Record<string, string> = {};
         if (!formState.firstName) newErrors.firstName = 'Required';
         if (!formState.lastName) newErrors.lastName = 'Required';
-        if (!formState.email) newErrors.email = 'Required';
-        if (!formState.confirmEmail) newErrors.confirmEmail = 'Required';
-        if (formState.email !== formState.confirmEmail) newErrors.confirmEmail = 'Emails do not match';
         if (!formState.phone) newErrors.phone = 'Required';
         if (!formState.relationship) newErrors.relationship = 'Required';
         if (!formState.address) newErrors.address = 'Required';
@@ -213,13 +209,13 @@ export default function EditQuote() {
     // Stepper UI
     return (
         <div className="p-6">
-            <div className="flex items-center mb-6">
-                <Button variant="outline" size="sm" onClick={() => router.push('/admin/quotes')}>Back to Quotes</Button>
-                <h1 className="text-2xl font-bold text-gray-900 ml-4">Edit Quote</h1>
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
+                <h1 className="text-2xl text-center sm:text-left font-bold text-gray-900 order-1 sm:order-none">Edit Quote</h1>
+                <Button className="w-full sm:w-auto order-2 sm:order-none" variant="outline" size="sm" onClick={() => router.push('/admin/quotes')}>Back to Quotes</Button>
             </div>
-            <div className="mb-8 flex gap-4">
+            <div className="mb-8 flex flex-row justify-center max-w-4xl mx-auto items-center gap-2 sm:gap-3 md:gap-10">
                 {[1, 2, 3, 4].map(s => (
-                    <Button key={s} variant={step === s ? 'default' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
+                    <Button key={s} className="flex-1 min-w-0 text-center rounded-full md:flex-initial md:w-48" variant={step === s ? 'default' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
                 ))}
             </div>
             {step === 1 && (
@@ -232,6 +228,7 @@ export default function EditQuote() {
                     showQuoteResults={showQuoteResults}
                     handleCalculateQuote={() => setShowQuoteResults(true)}
                     onSave={handleSave}
+                    isCustomerEdit={false} // Explicitly false for admin
                 />
             )}
             {step === 2 && (
@@ -242,6 +239,7 @@ export default function EditQuote() {
                     onValidate={validateStep2}
                     onContinue={() => setStep(3)}
                     onSave={handleSave}
+                    // isCustomerEdit={false} // if needed for Step2Form
                 />
             )}
             {step === 3 && (
@@ -252,6 +250,7 @@ export default function EditQuote() {
                     onValidate={validateStep3}
                     onContinue={() => setStep(4)}
                     onSave={handleSave}
+                    // isCustomerEdit={false} // if needed for Step3Form
                 />
             )}
             {step === 4 && (
@@ -261,6 +260,7 @@ export default function EditQuote() {
                     onBack={() => setStep(3)}
                     emailSent={emailSent}
                     onEmail={() => setEmailSent(true)}
+                    // isCustomerEdit={false} // if needed for Step4Form
                 />
             )}
         </div>

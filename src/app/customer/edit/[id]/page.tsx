@@ -16,6 +16,7 @@ function flattenQuote(quote: any) {
         eventType: quote.event?.eventType || '',
         eventDate: quote.event?.eventDate || '',
         maxGuests: quote.event?.maxGuests || '',
+        email: quote.policyHolder?.email || '',
         coverageLevel: quote.coverageLevel ?? null,
         liabilityCoverage: quote.liabilityCoverage ?? '',
         liquorLiability: quote.liquorLiability ?? false,
@@ -39,9 +40,6 @@ function flattenQuote(quote: any) {
         // Step 3
         firstName: quote.policyHolder?.firstName || '',
         lastName: quote.policyHolder?.lastName || '',
-        email: quote.policyHolder?.email || '',
-        confirmEmail: quote.policyHolder?.confirmEmail || '',
-        additionalEmail: quote.policyHolder?.additionalEmail || '',
         phone: quote.policyHolder?.phone || '',
         relationship: quote.policyHolder?.relationship || '',
         hearAboutUs: quote.policyHolder?.hearAboutUs || '',
@@ -98,6 +96,7 @@ export default function EditUserQuote() {
         if (!formState.residentState) newErrors.residentState = 'Required';
         if (!formState.eventType) newErrors.eventType = 'Required';
         if (!formState.maxGuests) newErrors.maxGuests = 'Required';
+        if (!formState.email) newErrors.email = 'Required';
         if (!formState.eventDate) newErrors.eventDate = 'Required';
         if (!formState.coverageLevel) newErrors.coverageLevel = 'Required';
         if (!formState.covidDisclosure) newErrors.covidDisclosure = 'Required';
@@ -123,9 +122,6 @@ export default function EditUserQuote() {
         const newErrors: Record<string, string> = {};
         if (!formState.firstName) newErrors.firstName = 'Required';
         if (!formState.lastName) newErrors.lastName = 'Required';
-        if (!formState.email) newErrors.email = 'Required';
-        if (!formState.confirmEmail) newErrors.confirmEmail = 'Required';
-        if (formState.email !== formState.confirmEmail) newErrors.confirmEmail = 'Emails do not match';
         if (!formState.phone) newErrors.phone = 'Required';
         if (!formState.relationship) newErrors.relationship = 'Required';
         if (!formState.address) newErrors.address = 'Required';
@@ -161,17 +157,16 @@ export default function EditUserQuote() {
     };
     // Stepper UI
     return (
-        <div className="max-w-3xl mx-auto w-full px-2 sm:px-4 md:px-8 py-6 md:py-10">
-            <div className="flex items-center mb-6">
-                <Button variant="outline" size="sm" onClick={() => router.push('/')}>Back to Home</Button>
-                <h1 className="text-2xl font-bold text-gray-900 ml-4">Edit Your Quote</h1>
+        <div className="p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
+                <h1 className="text-2xl text-center sm:text-left font-bold text-gray-900 order-1 sm:order-none">Edit Your Quote</h1>
+                <Button className="w-full sm:w-auto order-2 sm:order-none" variant="outline" size="sm" onClick={() => router.push('/')}>Back to Home</Button>
             </div>
-            <div className="mb-8 flex gap-4">
+            <div className="mb-8 flex flex-row justify-center max-w-4xl mx-auto items-center gap-2 sm:gap-3 md:gap-10">
                 {[1, 2, 3, 4].map(s => (
-                    <Button key={s} variant={step === s ? 'primary' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
+                    <Button key={s} className="flex-1 min-w-0 text-center rounded-full md:flex-initial md:w-48" variant={step === s ? 'default' : 'outline'} onClick={() => setStep(s)}>{`Step ${s}`}</Button>
                 ))}
             </div>
-            <div className="bg-white/90 rounded-2xl shadow-2xl border border-blue-100 p-4 sm:p-8 md:p-12 mt-6">
                 {step === 1 && (
                     <Step1Form
                         state={formState}
@@ -182,6 +177,7 @@ export default function EditUserQuote() {
                         showQuoteResults={showQuoteResults}
                         handleCalculateQuote={() => setShowQuoteResults(true)}
                         onSave={() => saveStep(1)}
+                        isCustomerEdit={true}
                     />
                 )}
                 {step === 2 && (
@@ -192,6 +188,7 @@ export default function EditUserQuote() {
                         onValidate={validateStep2}
                         onContinue={() => setStep(3)}
                         onSave={() => saveStep(2)}
+                        // isCustomerEdit might be relevant for other steps too if needed
                     />
                 )}
                 {step === 3 && (
@@ -202,6 +199,7 @@ export default function EditUserQuote() {
                         onValidate={validateStep3}
                         onContinue={() => setStep(4)}
                         onSave={() => saveStep(3)}
+                        // isCustomerEdit might be relevant for other steps too if needed
                     />
                 )}
                 {step === 4 && (
@@ -211,9 +209,9 @@ export default function EditUserQuote() {
                         onBack={() => setStep(3)}
                         emailSent={emailSent}
                         onEmail={() => setEmailSent(true)}
+                        // isCustomerEdit might be relevant for other steps too if needed
                     />
                 )}
-            </div>
         </div>
     );
 } 

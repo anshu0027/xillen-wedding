@@ -27,10 +27,10 @@ const Select: React.FC<SelectProps> = ({
   ...props
 }) => {
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-1">
       <select
         className={clsx(
-          "block w-full rounded-md shadow-sm appearance-none pl-3 pr-10 py-2 text-base transition-colors",
+          "block w-64 justify-center text-center items-center rounded-md shadow-sm appearance-none pl-3 pr-10 py-2 text-base transition-colors border border-gray-300",
           "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
           error 
             ? "border-red-300 text-red-900 placeholder-red-300" 
@@ -58,7 +58,7 @@ const Select: React.FC<SelectProps> = ({
           </option>
         ))}
       </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+      <div className="pointer-events-none flex text-gray-500">
         <ChevronDown size={16} />
       </div>
     </div>

@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
 interface PolicyList {
+    email: string;
+    policyId: number;
+    policyNumber: number;
     id: number;
     quoteNumber: string;
     policyHolder?: {
@@ -56,16 +59,21 @@ export default function Policies() {
             setError("");
             try {
                 // Fetch all policies (no server-side pagination)
-                const res = await fetch("/api/quote/step");
+                const res = await fetch("/api/policy/list");
                 if (!res.ok) throw new Error("Failed to fetch policies");
                 const data = await res.json();
+                console.log(data);
                 // Map nested fields for table display
                 const mapped = (data.policies || []).map((p: any) => ({
                     ...p,
                     customer: p.policyHolder ? `${p.policyHolder.firstName || ''} ${p.policyHolder.lastName || ''}`.trim() : '',
                     eventType: p.event?.eventType || '',
                     eventDate: p.event?.eventDate || '',
-                })).filter((p: any) => p.policyId || p.convertedToPolicy);
+                    event: p.event?.eventType || '',
+                }))
+                .filter((p: any) => p.policyId || p.convertedToPolicy)
+                .sort((a: PolicyList, b: PolicyList) => 
+                    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
                 setPolicies(mapped);
                 setTotalPolicies(mapped.length);
             } catch (err: unknown) {
@@ -145,7 +153,7 @@ export default function Policies() {
         const csvContent = [
             headers.join(","),
             ...filteredForExport.map(policy => [
-                policy.quoteNumber,
+                policy.policyNumber || policy.policyId || '',
                 policy.eventType || '',
                 policy.customer || (policy.policyHolder?.firstName && policy.policyHolder?.lastName ? `${policy.policyHolder.firstName} ${policy.policyHolder.lastName}` : "-"),
                 policy.eventDate || '',
@@ -301,9 +309,9 @@ export default function Policies() {
                         </div>
                     </div>
                 )}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
                     <table className="w-full">
-                        <thead>
+                        <thead className="sticky top-0 z-10">
                             <tr className="bg-gray-50">
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy #</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
@@ -318,14 +326,14 @@ export default function Policies() {
                             {currentPolicies.map((policy) => (
                                 <tr key={policy.quoteNumber} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="font-medium text-gray-900">{policy.quoteNumber}</span>
+                                        <span className="font-medium text-gray-900">{policy.policyNumber}</span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm font-medium text-gray-900">{policy.customer}</div>
-                                        <div className="text-sm text-gray-500">{policy.policyHolder?.email || "-"}</div>
+                                        <div className="text-sm text-gray-500">{policy?.email || "-"}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">{policy.eventType}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{policy.eventDate ? new Date(policy.eventDate).toLocaleDateString() : "-"}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{policy.createdAt ? new Date(policy.createdAt).toLocaleDateString() : "-"}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-900">${policy.totalPremium !== null && policy.totalPremium !== undefined ? policy.totalPremium : "-"}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${policy.status === 'COMPLETE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -355,7 +363,7 @@ export default function Policies() {
                                             >
                                                 <Mail className="h-4 w-4 mr-2" /> Email
                                             </Button>
-                                            <Button variant="destructive" size="sm" onClick={() => handleDeletePolicy(policy.id)}>
+                                            <Button variant="destructive" size="sm" onClick={() => handleDeletePolicy(policy.policyId)}>
                                                 Delete
                                             </Button>
                                         </div>

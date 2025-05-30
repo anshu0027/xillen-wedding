@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, DollarSign, TrendingUp, Calendar, Filter } from "lucide-react";
+import { ArrowLeft, Download, DollarSign, TrendingUp, Calendar, ChevronDown } from "lucide-react";
 import Card from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
-import Select from "@/components/ui/Select";
 
 const Transactions = () => {
     const router = useRouter();
@@ -13,13 +12,30 @@ const Transactions = () => {
     const [endDate, setEndDate] = useState<Date | null>(null);
     const [timeFrame, setTimeFrame] = useState('30days');
     const [showFilters, setShowFilters] = useState(false);
-    const [transactions, setTransactions] = useState<Array<{ id: string; createdAt: string; amount: number; status: string; method: string; policy: { quote: { quoteNumber: string; firstName: string; lastName: string; } } }>>([]);
+    // Updated type for transactions to correctly reflect nested PolicyHolder
+    const [transactions, setTransactions] = useState<Array<{
+        id: string;
+        createdAt: string;
+        amount: number;
+        status: string;
+        method: string | null;
+        policy: {
+            quote: {
+                quoteNumber: string;
+                policyHolder: {
+                    firstName: string | null;
+                    lastName: string | null;
+                } | null;
+            } | null;
+        } | null;
+    }>>([]);
 
     useEffect(() => {
         async function fetchTransactions() {
             const res = await fetch("/api/payment", { method: "GET" });
             if (res.ok) {
                 const data = await res.json();
+                console.log("Fetched data:", data);
                 console.log("Fetched transactions:", data.payments);
                 setTransactions(data.payments || []);
             }
@@ -105,12 +121,12 @@ const Transactions = () => {
         const csvContent = [
             headers.join(','),
             ...filteredTransactions.map(transaction => [
-                transaction.id,
-                transaction.policy.quote.quoteNumber,
-                `${transaction.policy.quote.firstName} ${transaction.policy.quote.lastName}`,
-                transaction.createdAt,
-                transaction.amount,
-                transaction.method,
+                transaction.id || '-',
+                transaction.policy?.quote?.quoteNumber || '-',
+                `${transaction.policy?.quote?.policyHolder?.firstName || ''} ${transaction.policy?.quote?.policyHolder?.lastName || ''}`.trim() || '-',
+                transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString() : '-',
+                transaction.amount ?? '-',
+                transaction.method || '-',
                 transaction.status
             ].join(','))
         ].join('\n');
@@ -169,18 +185,24 @@ const Transactions = () => {
             </div>
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <Select
-                        className="w-40"
-                        options={[
-                            { value: '7days', label: 'Last 7 Days' },
-                            { value: '30days', label: 'Last 30 Days' },
-                            { value: '90days', label: 'Last 90 Days' },
-                            { value: 'ytd', label: 'Year to Date' },
-                            { value: 'custom', label: 'Custom Range' }
-                        ]}
-                        value={timeFrame}
-                        onChange={setTimeFrame}
-                    />
+                    <div className="relative w-40">
+                        <select
+                            value={timeFrame}
+                            onChange={e => setTimeFrame(e.target.value)}
+                            className="block w-full appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {[
+                                { value: '7days', label: 'Last 7 Days' },
+                                { value: '30days', label: 'Last 30 Days' },
+                                { value: '90days', label: 'Last 90 Days' },
+                                { value: 'custom', label: 'Custom Range' }
+                            ].map(option => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    </div>
+
                     {timeFrame === 'custom' && (
                         <div className="mt-2 flex items-center gap-2">
                             <DatePicker
@@ -236,9 +258,7 @@ const Transactions = () => {
                     </div>
                 </Card>
             </div>
-            <Card title="Revenue Trend" icon={<TrendingUp size={20} />} className="mb-8">
-                {renderBarChart()}
-            </Card>
+
             <Card title="Recent Transactions" icon={<Calendar size={20} />}>
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -258,7 +278,7 @@ const Transactions = () => {
                                 <tr key={transaction.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">{transaction.id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{transaction.policy?.quote?.quoteNumber || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{`${transaction.policy?.quote?.firstName || ''} ${transaction.policy?.quote?.lastName || ''}`.trim() || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{`${transaction.policy?.quote?.policyHolder?.firstName || ''} ${transaction.policy?.quote?.policyHolder?.lastName || ''}`.trim() || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString() : '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">${transaction.amount ?? '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{transaction.method || '-'}</td>

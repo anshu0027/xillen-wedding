@@ -46,23 +46,28 @@ export default function Quotes() {
         // REMOVE admin auth check, allow access to all
     }, []);
 
+    // Helper function to process raw quote data
+    const processQuotesData = (rawData: any[]): QuoteList[] => {
+        return (rawData || []).map((q: any) => ({
+            ...q,
+            customer: q.policyHolder ? `${q.policyHolder.firstName || ''} ${q.policyHolder.lastName || ''}`.trim() : '',
+            eventType: q.event?.eventType || '',
+            eventDate: q.event?.eventDate || '',
+            isCustomerGenerated: q.source === 'CUSTOMER', // Determine if customer generated
+        })); // Removed filter to show all quotes
+    };
+
     useEffect(() => {
         async function fetchQuotes() {
             const res = await fetch("/api/quote/step?allQuotes=1", { method: "GET" });
             if (res.ok) {
                 const data = await res.json();
-                // Map nested fields for table display
-                const mapped = (data.quotes || []).map((q: any) => ({
-                    ...q,
-                    customer: q.policyHolder ? `${q.policyHolder.firstName || ''} ${q.policyHolder.lastName || ''}`.trim() : '',
-                    eventType: q.event?.eventType || '',
-                    eventDate: q.event?.eventDate || '',
-                })).filter((q: any) => q.source === 'ADMIN' && !q.convertedToPolicy);
-                setQuotes(mapped);
+                setQuotes(processQuotesData(data.quotes));
+                console.log(data);
             }
         }
         fetchQuotes();
-    }, []);
+    }, []); // processQuotesData can be memoized with useCallback if defined outside or becomes a dependency
 
     // Filter quotes based on search and filter criteria
     const filteredQuotes = quotes.filter(quote => {
@@ -204,10 +209,9 @@ export default function Quotes() {
         });
         if (res.ok) {
             const data = await res.json();
-            // Refetch the updated quote list
             const updated = await fetch("/api/quote/step?allQuotes=1");
             const updatedData = await updated.json();
-            setQuotes(updatedData.quotes || []);
+            setQuotes(processQuotesData(updatedData.quotes));
             toast({
                 title: "Success",
                 description: `Quote converted to policy successfully! Policy Number: ${data.policyNumber}`,
@@ -251,10 +255,9 @@ export default function Quotes() {
         if (!window.confirm('Are you sure you want to delete this quote?')) return;
         const res = await fetch(`/api/quote/step?quoteNumber=${quoteNumber}`, { method: 'DELETE' });
         if (res.ok) {
-            // Refetch the full updated quote list from the backend
             const updated = await fetch("/api/quote/step?allQuotes=1");
-            const data = await updated.json();
-            setQuotes(data.quotes || []);
+            const updatedData = await updated.json();
+            setQuotes(processQuotesData(updatedData.quotes));
             toast({ title: "Quote deleted successfully!", variant: "default" });
         } else {
             toast({ title: "Failed to delete quote.", variant: "destructive" });
@@ -363,9 +366,9 @@ export default function Quotes() {
                         </div>
                     </div>
                 )}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
                     <table className="w-full">
-                        <thead>
+                        <thead className="sticky top-0 z-10">
                             <tr className="bg-gray-50">
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quote ID</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>

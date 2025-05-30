@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { DollarSign, Shield, AlertTriangle, PlusCircle, Clock } from "lucide-react";
+import { DollarSign, Shield, PlusCircle, Clock } from "lucide-react";
 import Card from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
@@ -15,29 +15,57 @@ export default function AdminDashboard() {
     const [recentPayments, setRecentPayments] = useState<any[]>([]);
     useEffect(() => {
         async function fetchStats() {
-            // Policies
             const now = new Date();
-            const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-            const prevStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 60);
-            const prevEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 31);
+            // Define date ranges for the last 30 days and the 30 days prior to that
+            const currentPeriodStart = new Date(now);
+            currentPeriodStart.setDate(now.getDate() - 30);
+
+            const previousPeriodEnd = new Date(currentPeriodStart);
+            previousPeriodEnd.setDate(currentPeriodStart.getDate() - 1);
+
+            const previousPeriodStart = new Date(previousPeriodEnd);
+            previousPeriodStart.setDate(previousPeriodEnd.getDate() - 30);
+
             // Policies
             const policiesRes = await fetch("/api/policy/list?page=1&pageSize=1000");
             const policiesData = await policiesRes.json();
             const policies = policiesData.policies || [];
-            const currentPolicies = policies.filter(p => new Date(p.policyCreatedAt) >= start);
-            const prevPolicies = policies.filter(p => new Date(p.policyCreatedAt) >= prevStart && new Date(p.policyCreatedAt) <= prevEnd);
-            const policyChange = prevPolicies.length === 0 ? (currentPolicies.length === 0 ? 0 : 100) : (((currentPolicies.length - prevPolicies.length) / Math.abs(prevPolicies.length)) * 100).toFixed(1);
+            const currentPolicies = policies.filter(p => new Date(p.policyCreatedAt) >= currentPeriodStart && new Date(p.policyCreatedAt) <= now);
+            const prevPolicies = policies.filter(p => new Date(p.policyCreatedAt) >= previousPeriodStart && new Date(p.policyCreatedAt) <= previousPeriodEnd);
+            const policyChange = prevPolicies.length === 0 ? (currentPolicies.length === 0 ? 0 : 100) : parseFloat((((currentPolicies.length - prevPolicies.length) / prevPolicies.length) * 100).toFixed(1));
             setPolicyStats({ current: currentPolicies.length, prev: prevPolicies.length, change: policyChange });
+
             // Quotes
             const quotesRes = await fetch("/api/quote/step?allQuotes=1");
             const quotesData = await quotesRes.json();
             const quotes = quotesData.quotes || [];
+            const currentQuotes = quotes.filter(q => new Date(q.createdAt) >= currentPeriodStart && new Date(q.createdAt) <= now);
+            const prevQuotes = quotes.filter(q => new Date(q.createdAt) >= previousPeriodStart && new Date(q.createdAt) <= previousPeriodEnd);
+            const quoteChange = prevQuotes.length === 0 ? (currentQuotes.length === 0 ? 0 : 100) : parseFloat((((currentQuotes.length - prevQuotes.length) / prevQuotes.length) * 100).toFixed(1));
+            setQuoteStats({ current: currentQuotes.length, prev: prevQuotes.length, change: quoteChange });
+
             const sortedQuotes = quotes.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setRecentQuotes(sortedQuotes.slice(0, 5));
+
             // Revenue
             const paymentsRes = await fetch("/api/payment");
             const paymentsData = await paymentsRes.json();
             const payments = paymentsData.payments || [];
+
+            const currentPayments = payments.filter(p => {
+                const paymentDate = new Date(p.createdAt);
+                return paymentDate >= currentPeriodStart && paymentDate <= now && p.status === 'Completed';
+            });
+            const prevPayments = payments.filter(p => {
+                const paymentDate = new Date(p.createdAt);
+                return paymentDate >= previousPeriodStart && paymentDate <= previousPeriodEnd && p.status === 'Completed';
+            });
+
+            const currentRevenue = currentPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            const prevRevenue = prevPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            const revenueChange = prevRevenue === 0 ? (currentRevenue === 0 ? 0 : 100) : parseFloat((((currentRevenue - prevRevenue) / prevRevenue) * 100).toFixed(1));
+            setRevenueStats({ current: currentRevenue, prev: prevRevenue, change: revenueChange });
+
             const sortedPayments = payments.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setRecentPayments(sortedPayments.slice(0, 5));
         }
@@ -53,7 +81,7 @@ export default function AdminDashboard() {
             onClick: () => router.push("/admin/policies"),
         },
         {
-            title: "Active Quotes",
+            title: "Total Quotes",
             value: quoteStats.current,
             change: `${quoteStats.change > 0 ? '+' : ''}${quoteStats.change}%`,
             trend: quoteStats.change >= 0 ? "up" : "down",
@@ -78,19 +106,18 @@ export default function AdminDashboard() {
                     <p className="text-gray-600">Overview of insurance policies and events</p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex gap-3">
-                    <Link href="/admin/create-quote/step1">
                         <Button
                             variant="primary"
-                            icon={<PlusCircle size={18} />}
-                        >
+                            onClick={() => router.push("/admin/create-quote/step1")}
+                            >
+                            <PlusCircle size={18} />
                             Generate Policy
                         </Button>
-                    </Link>
                     <Button
                         variant="outline"
-                        icon={<Clock size={18} />}
                         onClick={() => router.push("/admin/create-quote/step1")}
                     >
+                        <PlusCircle size={18} />
                         Create Quote
                     </Button>
                 </div>

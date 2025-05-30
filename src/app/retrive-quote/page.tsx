@@ -61,6 +61,7 @@ const RetrieveQuote = () => {
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         disabled={loading}
+                        autoFocus
                     />
                     <Button
                         type="submit"

@@ -92,6 +92,59 @@ function validateAllFields(state: Record<string, unknown>) {
   return true;
 }
 
+// Helper to validate required fields from a quote object (DB or context)
+async function validateRetrievedQuoteFields(
+  quoteNumber: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/quote/step?quoteNumber=${quoteNumber}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    const quote = data.quote;
+    if (!quote) return false;
+    // Flatten DB quote to match required fields
+    const requiredFields = [
+      "eventType",
+      "eventDate",
+      "maxGuests",
+      "coverageLevel",
+      "liabilityCoverage",
+      "venueName",
+      "venueAddress1",
+      "venueCountry",
+      "venueCity",
+      "venueState",
+      "venueZip",
+      "firstName",
+      "lastName",
+      "email",
+    ];
+    // Map DB structure to flat fields
+    const flat = {
+      eventType: quote.event?.eventType,
+      eventDate: quote.event?.eventDate,
+      maxGuests: quote.event?.maxGuests,
+      coverageLevel: quote.coverageLevel,
+      liabilityCoverage: quote.liabilityCoverage,
+      venueName: quote.event?.venue?.name,
+      venueAddress1: quote.event?.venue?.address1,
+      venueCountry: quote.event?.venue?.country,
+      venueCity: quote.event?.venue?.city,
+      venueState: quote.event?.venue?.state,
+      venueZip: quote.event?.venue?.zip,
+      firstName: quote.policyHolder?.firstName,
+      lastName: quote.policyHolder?.lastName,
+      email: quote?.email,
+    };
+    for (const field of requiredFields) {
+      if (!flat[field]) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function Review() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -396,13 +449,59 @@ export default function Review() {
         setSavingPolicy(false);
       }
     } // Only include dependencies that are stable or state values read inside
-  }, [state, paymentSuccess, policySaved, showPolicyNumber, policyNumberRef, paymentMethodParam]); // Added dependencies for useCallback
+  }, [
+    state,
+    paymentSuccess,
+    policySaved,
+    showPolicyNumber,
+    policyNumberRef,
+    paymentMethodParam,
+  ]); // Added dependencies for useCallback
 
   // Effect to save policy after payment success
   useEffect(() => {
-    if (paymentSuccess && showPolicyNumber && !policySaved && !savingPolicy) {
-      console.log("Payment success detected, saving policy");
-      savePolicyAndPayment();
+    async function handleRetrievedValidationAndSave() {
+      if (
+        paymentSuccess &&
+        showPolicyNumber &&
+        !policySaved &&
+        !savingPolicy &&
+        searchParams.get("retrieved") === "true"
+      ) {
+        // Validate using DB for retrieved quote
+        const quoteNumber = localStorage.getItem("quoteNumber");
+        if (!quoteNumber) {
+          alert("Missing quote number. Please start from Step 1.");
+          return;
+        }
+        const valid = await validateRetrievedQuoteFields(quoteNumber);
+        console.log("Valid:", valid);
+        if (!valid) {
+          alert(
+            "Some required fields are missing in your saved quote. Please edit and save all steps before payment."
+          );
+          return;
+        }
+        savePolicyAndPayment();
+      }
+    }
+    if (searchParams.get("retrieved") === "true") {
+      handleRetrievedValidationAndSave();
+    } else {
+      if (paymentSuccess && showPolicyNumber && !policySaved && !savingPolicy) {
+        savePolicyAndPayment();
+      }
+    }
+    // If this is a retrieved quote, redirect to /back-to-home after policy is saved
+    if (
+      paymentSuccess &&
+      showPolicyNumber &&
+      policySaved &&
+      searchParams.get("retrieved") === "true"
+    ) {
+      setTimeout(() => {
+        router.replace("/back-to-home");
+      }, 2000); // Give user a moment to see the success
     }
   }, [
     paymentSuccess,
@@ -410,6 +509,8 @@ export default function Review() {
     policySaved,
     savingPolicy,
     savePolicyAndPayment,
+    searchParams,
+    router,
   ]);
 
   return (

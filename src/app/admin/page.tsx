@@ -11,8 +11,8 @@ export default function AdminDashboard() {
     const [policyStats, setPolicyStats] = useState({ current: 0, prev: 0, change: 0 });
     const [quoteStats, setQuoteStats] = useState({ current: 0, prev: 0, change: 0 });
     const [revenueStats, setRevenueStats] = useState({ current: 0, prev: 0, change: 0 });
-    const [recentQuotes, setRecentQuotes] = useState<any[]>([]);
-    const [recentPayments, setRecentPayments] = useState<any[]>([]);
+    const [recentQuotes, setRecentQuotes] = useState<any[]>([]); // Will be used for "Recent Transactions" card
+    // recentPayments state is no longer needed as "Recent Transactions" will use recentQuotes
     useEffect(() => {
         async function fetchStats() {
             const now = new Date();
@@ -47,30 +47,25 @@ export default function AdminDashboard() {
             const sortedQuotes = quotes.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setRecentQuotes(sortedQuotes.slice(0, 5));
 
-            // Revenue
-            const paymentsRes = await fetch("/api/payment");
-            const paymentsData = await paymentsRes.json();
-            const payments = paymentsData.payments || [];
+            // Revenue calculation (already using quotes, no changes needed here)
+            // Calculate revenue based on totalPremium from quotes (similar to transactions page's "Total Revenue")
+            const currentRevenue = currentQuotes.reduce((sum, q) => sum + (q.totalPremium || 0), 0);
+            const prevRevenue = prevQuotes.reduce((sum, q) => sum + (q.totalPremium || 0), 0);
 
-            const currentPayments = payments.filter(p => {
-                const paymentDate = new Date(p.createdAt);
-                return paymentDate >= currentPeriodStart && paymentDate <= now && p.status === 'Completed';
-            });
-            const prevPayments = payments.filter(p => {
-                const paymentDate = new Date(p.createdAt);
-                return paymentDate >= previousPeriodStart && paymentDate <= previousPeriodEnd && p.status === 'Completed';
-            });
-
-            const currentRevenue = currentPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-            const prevRevenue = prevPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-            const revenueChange = prevRevenue === 0 ? (currentRevenue === 0 ? 0 : 100) : parseFloat((((currentRevenue - prevRevenue) / prevRevenue) * 100).toFixed(1));
+            // Use Math.abs(prevRevenue) in denominator for robust percentage calculation, similar to transactions page
+            const revenueChange = prevRevenue === 0 ? (currentRevenue === 0 ? 0 : 100) : parseFloat((((currentRevenue - prevRevenue) / (Math.abs(prevRevenue) || 1)) * 100).toFixed(1));
             setRevenueStats({ current: currentRevenue, prev: prevRevenue, change: revenueChange });
-
-            const sortedPayments = payments.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            setRecentPayments(sortedPayments.slice(0, 5));
+            // The fetch for /api/payment and setRecentPayments is removed as recentQuotes will be used.
         }
         fetchStats();
     }, []);
+
+    function generateTransactionId(quoteNum: string | null | undefined): string {
+        if (quoteNum && quoteNum.startsWith("Q")) {
+            return "T" + quoteNum.substring(1);
+        }
+        return quoteNum || "N/A";
+    }
     const stats = [
         {
             title: "Total Policies",
@@ -99,20 +94,20 @@ export default function AdminDashboard() {
     ];
 
     return (
-        <div className="p-6">
+        <div className="p-6 max-w-7xl mx-auto">
             <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
                     <p className="text-gray-600">Overview of insurance policies and events</p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex gap-3">
-                        <Button
-                            variant="primary"
-                            onClick={() => router.push("/admin/create-quote/step1")}
-                            >
-                            <PlusCircle size={18} />
-                            Generate Policy
-                        </Button>
+                    <Button
+                        variant="primary"
+                        onClick={() => router.push("/admin/create-quote/step1")}
+                    >
+                        <PlusCircle size={18} />
+                        Generate Policy
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={() => router.push("/admin/create-quote/step1")}
@@ -176,7 +171,7 @@ export default function AdminDashboard() {
 
                 <Card
                     title="Recent Transactions"
-                    subtitle="Latest payments received"
+                    subtitle="Latest quote activities"
                     icon={<DollarSign size={20} />}
                     footer={
                         <div className="text-right">
@@ -191,17 +186,23 @@ export default function AdminDashboard() {
                     }
                 >
                     <div className="divide-y divide-gray-100">
-                        {recentPayments.length === 0 ? (
-                            <div className="py-3 text-gray-500">No recent transactions</div>
-                        ) : recentPayments.map((payment) => (
-                            <div key={payment.id} className="py-3">
+                        {recentQuotes.length === 0 ? (
+                            <div className="py-2 text-gray-500">No recent transactions</div>
+                        ) : recentQuotes.map((quote) => (
+                            <div key={quote.id || quote.quoteNumber} className="py-1">
                                 <div className="flex items-center justify-between">
-                                    <p className="font-medium text-gray-900">TRX-{payment.id}</p>
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'Completed' ? 'bg-green-100 text-green-800' : payment.status === 'Failed' ? 'bg-red-100 text-red-800' : ''}`}>{payment.status}</span>
+                                    <p className="font-medium text-gray-900 truncate" title={generateTransactionId(quote.quoteNumber)}>
+                                        {generateTransactionId(quote.quoteNumber)}
+                                    </p>
                                 </div>
-                                <div className="flex items-center justify-between mt-1">
-                                    <p className="text-sm text-gray-500">Policy #{payment.policy?.quote?.quoteNumber || '-'}</p>
-                                    <p className="text-sm font-medium text-gray-900">${payment.amount}</p>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-500 truncate" title={`${quote.policyHolder?.firstName || ""} ${quote.policyHolder?.lastName || ""}`.trim() || "Unknown Customer"}>
+                                        {`${quote.policyHolder?.firstName || ""} ${quote.policyHolder?.lastName || ""}`.trim() || "Unknown Customer"} ({quote.quoteNumber})
+                                    </span>
+                                    <span className="font-medium text-gray-800">${(quote.totalPremium || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1 text-right">
+                                    {new Date(quote.createdAt).toLocaleDateString()}
                                 </div>
                             </div>
                         ))}

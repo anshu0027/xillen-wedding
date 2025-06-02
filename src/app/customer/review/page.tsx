@@ -336,7 +336,7 @@ export default function Review() {
 
   // Define savePolicyAndPayment function at component level
   const savePolicyAndPayment = useCallback(async () => {
-    console.log("Attempting to save policy and payment");
+    console.log("Attempting to save policy");
     console.log("Payment success:", paymentSuccess);
     console.log("Show policy number:", showPolicyNumber);
     console.log("Policy saved:", policySaved);
@@ -425,43 +425,10 @@ export default function Review() {
           }
         }
 
-        // 3. Create payment if policy created
-        if (quoteData.quote && quoteData.quote.id) {
-          // Find policyId (should be created by backend)
-          const policyId = quoteData.quote.policy?.id;
-          console.log("Policy ID from quote:", policyId);
-
-          if (policyId) {
-            const paymentRes = await fetch("/api/payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                amount: state.totalPremium,
-                policyId,
-                method: paymentMethodParam, // Use the actual payment method
-                status: "SUCCESS", // Use the enum value
-              }),
-            });
-
-            const paymentData = await paymentRes.json();
-            console.log("Payment API response:", paymentData);
-
-            if (!paymentRes.ok) {
-              console.error("Failed to save payment:", paymentData.error);
-              alert(
-                "Failed to save payment: " +
-                  (paymentData.error || "Unknown error")
-              );
-              setSavingPolicy(false);
-              return;
-            }
-          }
-        }
-
-        console.log("Policy and payment saved successfully");
+        console.log("Policy saved successfully");
         setPolicySaved(true);
       } catch (error) {
-        console.error("Error saving policy and payment:", error);
+        console.error("Error saving policy:", error);
         alert(
           "An error occurred while saving your policy: " +
             (typeof error === "object" && error !== null && "message" in error
@@ -471,15 +438,14 @@ export default function Review() {
       } finally {
         setSavingPolicy(false);
       }
-    } // Only include dependencies that are stable or state values read inside
+    }
   }, [
     state,
     paymentSuccess,
     policySaved,
     showPolicyNumber,
     policyNumberRef,
-    paymentMethodParam,
-  ]); // Added dependencies for useCallback
+  ]);
 
   // Effect to save policy after payment success
   useEffect(() => {

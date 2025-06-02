@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -21,6 +21,8 @@ const Transactions = () => {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [timeFrame, setTimeFrame] = useState("30days");
   const [currentPage, setCurrentPage] = useState(1);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
   //   const [showFilters, setShowFilters] = useState(false);
 
   // Updated type for transactions to correctly reflect nested PolicyHolder
@@ -68,12 +70,12 @@ const Transactions = () => {
             totalPremium: q.totalPremium,
             status: q.status,
             source: q.source || null,
-            paymentMethod:
-              q.source === "ADMIN"
-                ? "CASH"
-                : q.policy && q.policy.payments && q.policy.payments.length > 0
-                  ? q.policy.payments[0].method || "-"
-                  : "-",
+            paymentMethod: // Updated logic for payment method
+              q.source === "ADMIN" // If admin, always CASH
+                ? "CASH" 
+                : q.Payment && q.Payment.length > 0 // If customer, check direct Payment array on quote
+                  ? q.Payment[0].method || "-" // Use the method from the first payment record
+                  : "-", // Default if no payment record or method found
           }))
         );
         setLoading(false);
@@ -81,6 +83,20 @@ const Transactions = () => {
     }
     fetchTransactions();
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+        if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+            setShowExportDropdown(false);
+        }
+    }
+    if (showExportDropdown) {
+        document.addEventListener("mousedown", handleClickOutside);
+    } else {
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+}, [showExportDropdown]);
 
   // Filter transactions based on date range
   const filteredTransactions = transactions.filter((transaction) => {
@@ -163,7 +179,7 @@ const Transactions = () => {
   });
   const prevTotalSales = prevTransactions
     .filter((t) => t.status === "Completed")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + (t.totalPremium || 0), 0);
   const prevSuccessful = prevTransactions.filter(
     (t) => t.status === "Completed"
   ).length;
@@ -177,9 +193,26 @@ const Transactions = () => {
 
 
   // Calculate percentage changes
-  function percentChange(current, prev) {
+  function percentChange(current: number, prev: number): string | number {
     if (prev === 0) return current === 0 ? 0 : 100;
     return (((current - prev) / Math.abs(prev)) * 100).toFixed(1);
+  }
+
+  interface TransactionPolicyHolder {
+    firstName: string | null;
+    lastName: string | null;
+  }
+
+  interface Transaction {
+    id?: string;
+    transactionId: string;
+    quoteNumber: string;
+    policyHolder?: TransactionPolicyHolder | null;
+    createdAt: string;
+    totalPremium: number | null;
+    status: string;
+    source?: string | null;
+    paymentMethod?: string | null;
   }
   const totalSalesChange = percentChange(totalSales, prevTotalSales);
   const successfulChange = percentChange(
@@ -204,18 +237,17 @@ const Transactions = () => {
     const csvContent = [
       headers.join(","),
       ...filteredTransactions.map((transaction) =>
-        [
-          transaction.transactionId,
-          transaction.quoteNumber || "-", // Consistently use quoteNumber
-          `${transaction.policyHolder?.firstName || ""} ${transaction.policyHolder?.lastName || ""
-            }`.trim() || "-",
-          transaction.createdAt
-            ? new Date(transaction.createdAt).toLocaleDateString()
-            : "-",
-          transaction.totalPremium ?? "-", // Amount
-          transaction.source === "ADMIN" ? "CASH" : transaction.paymentMethod || "-", // Payment Method
-          transaction.status,
-        ].join(",")
+      [
+        String(transaction.transactionId).toUpperCase(),
+        String(transaction.quoteNumber || "-").toUpperCase(), // Consistently use quoteNumber
+        `${(transaction.policyHolder?.firstName || "").toUpperCase()} ${(transaction.policyHolder?.lastName || "").toUpperCase()}`.trim() || "-",
+        transaction.createdAt
+        ? new Date(transaction.createdAt).toLocaleDateString()
+        : "-",
+        transaction.totalPremium ?? "-", // Amount
+        (transaction.source === "ADMIN" ? "CASH" : transaction.paymentMethod || "-").toUpperCase(), // Payment Method
+        String(transaction.status).toUpperCase(),
+      ].join(",")
       ),
     ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -347,19 +379,19 @@ const Transactions = () => {
 
   if (loading) {
     return (
-      <div className="p-6 animate-pulse">
-        <div className="flex items-center mb-6">
-          <div className="h-9 w-40 bg-gray-200 rounded-md"></div>
-          <div className="h-8 w-56 bg-gray-200 rounded-md ml-4"></div>
+      <div className="p-4 sm:p-6 animate-pulse">
+        <div className="flex flex-col items-start sm:flex-row sm:items-center mb-6 gap-2 sm:gap-0">
+          <div className="h-9 w-48 bg-gray-200 rounded-md"></div> {/* Adjusted width for "Back to Dashboard" */}
+          <div className="h-8 w-56 bg-gray-200 rounded-md sm:ml-4"></div>
         </div>
-        <div className="flex justify-between items-center mb-6">
-          <div className="h-10 w-40 bg-gray-200 rounded-md"></div>
-          <div className="flex gap-2">
-            <div className="h-9 w-32 bg-gray-200 rounded-md"></div>
-            <div className="h-9 w-32 bg-gray-200 rounded-md"></div>
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+          <div className="h-10 w-full sm:w-48 bg-gray-200 rounded-md"></div> {/* Filter select */}
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+            <div className="h-9 w-full sm:w-32 bg-gray-200 rounded-md"></div> {/* Export button */}
+            <div className="h-9 w-full sm:w-32 bg-gray-200 rounded-md"></div> {/* Export button */}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
           <StatCardSkeleton />
           <StatCardSkeleton />
         </div>
@@ -369,7 +401,7 @@ const Transactions = () => {
               <thead>
                 <tr className="bg-gray-50">
                   {[...Array(7)].map((_, i) => (
-                    <th key={i} className="px-6 py-3 text-left"><div className="h-4 bg-gray-300 rounded w-20"></div></th>
+                    <th key={i} className="px-6 py-3 text-left"><div className="h-4 bg-gray-300 rounded w-16 sm:w-20"></div></th>
                   ))}
                 </tr>
               </thead>
@@ -384,23 +416,25 @@ const Transactions = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center mb-6">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col items-start sm:flex-row sm:items-center mb-6 gap-2 sm:gap-0">
         <Button
           variant="outline"
           size="sm"
           onClick={handleBack}
+          className="w-full sm:w-auto"
         >
           <ArrowLeft size={16} />
           Back to Dashboard
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900 ml-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 sm:ml-4 mt-2 sm:mt-0">
           Transaction Summary
         </h1>
       </div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <div className="relative w-40">
+      {/* Filters and Export Buttons */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
+          <div className="relative w-full sm:w-48">
             <select
               value={timeFrame}
               onChange={(e) => setTimeFrame(e.target.value)}
@@ -424,42 +458,48 @@ const Transactions = () => {
           </div>
 
           {timeFrame === "custom" && (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 sm:mt-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <DatePicker
                 selected={startDate}
                 onChange={setStartDate}
                 placeholderText="Start date"
-                className="w-32"
+                className="w-full sm:w-36"
               />
-              <span className="text-gray-500">to</span>
+              <span className="text-gray-500 px-1 text-center sm:px-0">to</span>
               <DatePicker
                 selected={endDate}
                 onChange={setEndDate}
                 placeholderText="End date"
-                className="w-32"
+                className="w-full sm:w-36"
               />
             </div>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExportCSV}
-          >
-            <Download size={18} className="mr-2" />
-            Export CSV
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleExportPDF}
-          >
-            <Download size={18} className="mr-2" />
-            Export PDF
-          </Button>
+        <div className="relative w-full lg:w-auto" ref={exportDropdownRef}>
+            <Button
+                variant="outline"
+                onClick={() => setShowExportDropdown(prev => !prev)}
+                className="w-full sm:w-auto"
+            >
+                <Download size={18} className="mr-2" />
+                Export
+            </Button>
+            {showExportDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                    <Button variant="ghost" onClick={() => { handleExportCSV(); setShowExportDropdown(false); }} className="w-full justify-start px-4 py-2 text-left text-gray-700 hover:bg-gray-100">
+                        <Download size={16} className="mr-2" />
+                        Export CSV
+                    </Button>
+                    <Button variant="ghost" onClick={() => { handleExportPDF(); setShowExportDropdown(false); }} className="w-full justify-start px-4 py-2 text-left text-gray-700 hover:bg-gray-100">
+                        <Download size={16} className="mr-2" />
+                        Export PDF
+                    </Button>
+                </div>
+            )}
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card title="Total Revenue" icon={<DollarSign size={20} />}>
+        <Card title="Total Revenue" icon={<DollarSign size={18} />}>
           <div className="mt-2">
             <div className="text-3xl font-bold text-gray-900">
               ${totalSales.toLocaleString()}
@@ -467,13 +507,13 @@ const Transactions = () => {
             <div className="text-sm text-green-600 mt-1 flex items-center">
               <TrendingUp size={16} className="mr-1" />
               <span>
-                {totalSalesChange > 0 ? "+" : ""}
+                {Number(totalSalesChange) > 0 ? "+" : "-"}
                 {totalSalesChange}% from previous period
               </span>
             </div>
           </div>
         </Card>
-        <Card title="Completed Transactions" icon={<DollarSign size={20} />}>
+        <Card title="Completed Transactions" icon={<DollarSign size={18}/>}>
           <div className="mt-2">
             <div className="text-3xl font-bold text-gray-900">
               {successfulTransactions}
@@ -481,13 +521,13 @@ const Transactions = () => {
             <div className="text-sm text-green-600 mt-1 flex items-center">
               <TrendingUp size={16} className="mr-1" />
               <span>
-                {successfulChange > 0 ? "+" : ""}
+                {Number(successfulChange) > 0 ? "+" : "-"}
                 {successfulChange}% from previous period
               </span>
             </div>
           </div>
         </Card>
-        {/* <Card title="Conversion Rate" icon={<TrendingUp size={20} />}>
+        {/* <Card title="Conversion Rate" icon={<TrendingUp size={18} sm:size={20} />}>
           <div className="mt-2">
             <div className="text-3xl font-bold text-gray-900">
               {conversionRate}%
@@ -503,7 +543,7 @@ const Transactions = () => {
         </Card> */}
       </div>
 
-      <Card title="Recent Transactions" icon={<Calendar size={20} />}>
+      <Card title="Recent Transactions" icon={<Calendar size={18}/>}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -555,7 +595,7 @@ const Transactions = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     ${transaction.totalPremium ?? "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap uppercase">
                     {transaction.source === "ADMIN" ? "CASH" : transaction.paymentMethod || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -576,13 +616,13 @@ const Transactions = () => {
           </table>
         </div>
         {/* Pagination Info and Controls */}
-        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-          <p className="text-sm text-gray-700">
+        <div className="mt-6 flex flex-col items-center sm:flex-row sm:justify-between gap-4 border-t border-gray-200 pt-4">
+          <p className="text-sm text-gray-700 text-center sm:text-left">
             Showing <span className="font-medium">{Math.min(endIndex, filteredTransactions.length)}</span> of <span className="font-medium">{filteredTransactions.length}</span> transactions
           </p>
           
           {totalPages > 0 && (
-            <div className="flex gap-2">
+            <div className="flex items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"

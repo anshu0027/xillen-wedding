@@ -879,6 +879,7 @@ export async function GET(req: NextRequest) {
           event: { include: { venue: true } },
           policyHolder: true,
           policy: { include: { payments: true } },
+          Payment: true, // Include direct payments associated with the quote
         },
       });
       // Also fetch policies for admin policies table

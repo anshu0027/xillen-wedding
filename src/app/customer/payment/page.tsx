@@ -26,18 +26,55 @@ export default function Payment() {
     return () => clearTimeout(timer);
   }, []); // Empty dependency array means this runs once on mount
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setProcessing(true);
-    setTimeout(() => {
+    try {
+      const quoteNumber = localStorage.getItem("quoteNumber");
+      if (!quoteNumber) {
+        throw new Error("Missing quote number");
+      }
+      
+      // Validate payment method is selected
+      if (!selected) {
+        throw new Error("Please select a payment method");
+      }
+      
+      // Get quote details first to ensure it exists
+      const quoteRes = await fetch(`/api/quote/step?quoteNumber=${quoteNumber}`);
+      const quoteData = await quoteRes.json();
+      
+      if (!quoteRes.ok || !quoteData.quote) {
+        throw new Error("Failed to fetch quote details");
+      }
+      
+      // We should create the payment here instead of in review
+      const paymentRes = await fetch("/api/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: quoteData.quote.totalPremium,
+          quoteId: quoteData.quote.id,
+          method: selected,
+          status: "SUCCESS"
+        })
+      });
+  
+      if (!paymentRes.ok) {
+        throw new Error("Payment failed");
+      }
+  
       if (isRetrieved) {
         localStorage.removeItem("retrievedQuote");
-        router.replace(
-          `/customer/review?payment=success&method=${selected}&retrieved=true`
-        );
+        router.replace(`/customer/review?payment=success&method=${selected}&retrieved=true`);
       } else {
         router.replace(`/customer/review?payment=success&method=${selected}`);
       }
-    }, 1500);
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert(error instanceof Error ? error.message : "Payment failed. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const PaymentPageSkeleton = () => (

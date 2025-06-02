@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, PaymentStatus } from "../../../../backend/prismaClient";
+import { prisma } from "@/lib/prisma";
+import { PaymentStatus } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,13 +14,21 @@ export async function GET(req: NextRequest) {
       const payment = await prisma.payment.findUnique({
         where: { id: parseInt(id) }, // Use parseInt for Int IDs
         include: {
-          policy: {
+          Policy: {
             include: {
               quote: {
                 include: {
-                  policyHolder: true, // Include PolicyHolder details
+                  policyHolder: true,
+                  event: { include: { venue: true } },
                 },
               },
+            },
+          },
+          // Include the direct quote relation as well
+          quote: {
+            include: {
+              policyHolder: true,
+              event: { include: { venue: true } },
             },
           },
         },
@@ -37,8 +46,8 @@ export async function GET(req: NextRequest) {
           payment.status === "SUCCESS"
             ? "Completed"
             : payment.status === "FAILED"
-            ? "Failed"
-            : payment.status,
+              ? "Failed"
+              : payment.status,
       };
       return NextResponse.json({ payment: mappedPayment });
     }
@@ -49,13 +58,21 @@ export async function GET(req: NextRequest) {
       payments = await prisma.payment.findMany({
         where: { policyId: parseInt(policyId) }, // Use parseInt for Int IDs
         include: {
-          policy: {
+          Policy: {
             include: {
               quote: {
                 include: {
-                  policyHolder: true, // Include PolicyHolder details
+                  policyHolder: true,
+                  event: { include: { venue: true } },
                 },
               },
+            },
+          },
+          // Include the direct quote relation as well
+          quote: {
+            include: {
+              policyHolder: true,
+              event: { include: { venue: true } },
             },
           },
         },
@@ -64,18 +81,24 @@ export async function GET(req: NextRequest) {
     } else if (quoteId) {
       payments = await prisma.payment.findMany({
         where: {
-          policy: {
-            quoteId: parseInt(quoteId), // Assuming quoteId on Policy is also Int
-          },
+          quoteId: parseInt(quoteId), // Filter directly by Payment.quoteId
         },
         include: {
-          policy: {
+          Policy: {
             include: {
               quote: {
                 include: {
-                  policyHolder: true, // Include PolicyHolder details
+                  policyHolder: true,
+                  event: { include: { venue: true } },
                 },
               },
+            },
+          },
+          // Include the direct quote relation as well
+          quote: {
+            include: {
+              policyHolder: true,
+              event: { include: { venue: true } },
             },
           },
         },
@@ -85,13 +108,25 @@ export async function GET(req: NextRequest) {
       // Default: fetch all payments
       payments = await prisma.payment.findMany({
         include: {
-          policy: {
+          Policy: {
             include: {
               quote: {
                 include: {
-                  policyHolder: true, // Include PolicyHolder details
+                  policyHolder: true,
+                  event: {
+                    include: {
+                      venue: true
+                    }
+                  },
                 },
               },
+            },
+          },
+          // Include the direct quote relation as well
+          quote: {
+            include: {
+              policyHolder: true,
+              event: { include: { venue: true } },
             },
           },
         },
@@ -106,8 +141,8 @@ export async function GET(req: NextRequest) {
         payment.status === "SUCCESS"
           ? "Completed"
           : payment.status === "FAILED"
-          ? "Failed"
-          : payment.status,
+            ? "Failed"
+            : payment.status,
     }));
 
     return NextResponse.json({ payments: mappedPayments });
@@ -125,15 +160,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       amount,
-      policyId,
+      quoteId,
       method,
       status, // Expecting "SUCCESS", "PENDING", or "FAILED" from client
       reference, // Matches model field name
     } = body;
 
-    if (!amount || !policyId || !status) {
+    if (!amount || !quoteId || !status) {
       return NextResponse.json(
-        { error: "Missing required fields (amount, policyId, status)" },
+        { error: "Missing required fields (amount, quoteId, status)" },
         { status: 400 }
       );
     }
@@ -149,7 +184,7 @@ export async function POST(req: NextRequest) {
     const payment = await prisma.payment.create({
       data: {
         amount: parseFloat(amount),
-        policyId: parseInt(policyId), // Ensure policyId is an Int
+        quoteId: parseInt(quoteId), // Ensure quoteId is an Int
         method: method || "Online", // Use 'method' from body, matches model
         status: status as PaymentStatus, // Cast to enum type
         reference: reference || null, // Use 'reference' from body, matches model

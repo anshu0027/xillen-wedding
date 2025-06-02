@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Filter, Download, Eye, PlusCircle, Edit, Mail } from "lucide-react";
 import Card from "@/components/ui/Card";
@@ -54,6 +54,8 @@ export default function Policies() {
     const [totalPolicies, setTotalPolicies] = useState(0);
     const [showFilters, setShowFilters] = useState(false);
     const [statusFilter, setStatusFilter] = useState('');
+    const [showExportDropdown, setShowExportDropdown] = useState(false);
+    const exportDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         async function fetchPolicies() {
@@ -86,6 +88,20 @@ export default function Policies() {
         }
         fetchPolicies();
     }, []);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+                setShowExportDropdown(false);
+            }
+        }
+        if (showExportDropdown) {
+            document.addEventListener("mousedown", handleClickOutside);
+        } else {
+            document.removeEventListener("mousedown", handleClickOutside);
+        }
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [showExportDropdown]);
 
     const filteredForExport = useMemo(() => {
         if (exportType === 'all') return policies;
@@ -378,14 +394,28 @@ export default function Policies() {
                         <option value="yearly">Yearly</option>
                         <option value="weekly">Weekly</option>
                     </select>
-                    <Button variant="outline" onClick={handleExportCSV} className="w-full sm:w-auto">
-                        <Download size={18} className="mr-2" />
-                        Export CSV
-                    </Button>
-                    <Button variant="outline" onClick={handleExportPDF} className="w-full sm:w-auto">
-                        <Download size={18} className="mr-2" />
-                        Export PDF
-                    </Button>
+                    <div className="relative w-full sm:w-auto" ref={exportDropdownRef}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowExportDropdown(prev => !prev)}
+                            className="w-full sm:w-auto"
+                        >
+                            <Download size={18} className="mr-2" />
+                            Export
+                        </Button>
+                        {showExportDropdown && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                                <Button variant="ghost" onClick={() => { handleExportCSV(); setShowExportDropdown(false); }} className="w-full justify-start px-4 py-2 text-left text-gray-700 hover:bg-gray-100">
+                                    <Download size={16} className="mr-2" />
+                                    Export CSV
+                                </Button>
+                                <Button variant="ghost" onClick={() => { handleExportPDF(); setShowExportDropdown(false); }} className="w-full justify-start px-4 py-2 text-left text-gray-700 hover:bg-gray-100">
+                                    <Download size={16} className="mr-2" />
+                                    Export PDF
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
             <Card>
@@ -487,11 +517,11 @@ export default function Policies() {
                         </tbody>
                     </table>
                 </div>
-                <div className="mt-6 flex items-center justify-between">
-                    <p className="text-sm text-gray-700">
+                <div className="mt-6 flex flex-col items-center sm:flex-row sm:justify-between gap-4 border-t border-gray-200 pt-4">
+                    <p className="text-sm text-gray-700 text-center sm:text-left">
                         Showing <span className="font-medium">{Math.min(endIndex, filteredPolicies.length)}</span> of <span className="font-medium">{filteredPolicies.length}</span> policies
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
                         <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>
                             Previous
                         </Button>

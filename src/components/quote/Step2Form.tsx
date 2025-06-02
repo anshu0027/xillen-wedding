@@ -376,7 +376,6 @@ export default function Step2Form({ state, errors, onChange, onValidate, onConti
                         variant="outline"
                         size="lg"
                         onClick={onSave}
-                        fullWidth
                         className="transition-transform duration-150 hover:scale-105"
                     >
                         Save

@@ -29,13 +29,21 @@ export default function PolicyHolder() {
   const { state, dispatch } = useQuote();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formattedPhone, setFormattedPhone] = useState(state.phone);
+  const [pageReady, setPageReady] = useState(false);
 
   useEffect(() => {
-    if (!state.step2Complete) {
-      router.replace("/customer/event-information");
-    }
+    const timer = setTimeout(() => {
+      if (!state.step2Complete) {
+        toast.error(
+          "Please complete Step 2: Event & Venue Details first."
+        );
+        router.replace("/customer/event-information");
+        return;
+      }
+      setPageReady(true);
+    }, 200); // Short delay for skeleton visibility
+    return () => clearTimeout(timer);
   }, [state.step2Complete, router]);
-
   useEffect(() => {
     if (state.phone) {
       setFormattedPhone(formatPhoneNumber(state.phone));
@@ -123,6 +131,88 @@ export default function PolicyHolder() {
       }
     }
   };
+
+  const PolicyHolderSkeleton = () => (
+    <div className="w-full pb-12 animate-pulse">
+      {/* Policyholder Information Skeleton */}
+      <div className="mb-10 shadow-2xl bg-gray-100/90 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+        <div className="flex items-center justify-center text-center mb-4 gap-4">
+          <div className="h-9 w-9 bg-gray-300 rounded-full"></div>
+          <div>
+            <div className="h-7 bg-gray-300 rounded w-48 mb-1"></div>
+            <div className="h-5 bg-gray-300 rounded w-56"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="mb-4">
+              <div className="h-5 bg-gray-300 rounded w-1/3 mx-auto mb-2"></div>
+              <div className="h-10 bg-gray-200 rounded-md"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Contact Information Skeleton */}
+      <div className="mb-8 shadow-lg bg-gray-100 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+        <div className="flex items-center justify-center text-center mb-4 gap-4">
+          <div className="h-7 w-7 bg-gray-300 rounded-full"></div>
+          <div>
+            <div className="h-7 bg-gray-300 rounded w-40 mb-1"></div>
+            <div className="h-5 bg-gray-300 rounded w-52"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full px-2 sm:px-4 md:px-8">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="mb-4">
+              <div className="h-5 bg-gray-300 rounded w-1/2 mx-auto mb-2"></div>
+              <div className="h-10 bg-gray-200 rounded-md"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mailing Address Skeleton */}
+      <div className="mb-8 shadow-lg bg-gray-100 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+        <div className="flex items-center justify-center text-center mb-4 gap-4">
+          <div className="h-7 w-7 bg-gray-300 rounded-full"></div>
+          <div>
+            <div className="h-7 bg-gray-300 rounded w-36 mb-1"></div>
+            <div className="h-5 bg-gray-300 rounded w-48"></div>
+          </div>
+        </div>
+        <div className="space-y-8 w-full px-2 sm:px-4 md:px-8">
+          <div className="h-10 bg-gray-200 rounded-md"></div> {/* Address */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+            {[...Array(4)].map((_, i) => ( // Country, City, State, Zip
+              <div key={i} className="mb-4">
+                <div className="h-5 bg-gray-300 rounded w-1/3 mx-auto mb-2"></div>
+                <div className="h-10 bg-gray-200 rounded-md"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legal Notices Skeleton */}
+      <div className="mb-8 shadow-lg bg-gray-100 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+        <div className="h-6 bg-gray-300 rounded w-1/4 mb-4"></div> {/* Title */}
+        <div className="h-20 bg-gray-200 rounded mb-4"></div> {/* Text block */}
+        <div className="h-10 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div> {/* Checkbox */}
+        <div className="h-10 bg-gray-200 rounded w-1/2 mx-auto"></div> {/* Name input */}
+      </div>
+
+      {/* Navigation Buttons Skeleton */}
+      <div className="flex justify-between mt-10 gap-4 w-full">
+        <div className="h-12 bg-gray-300 rounded-md w-48"></div>
+        <div className="h-12 bg-gray-300 rounded-md w-48"></div>
+      </div>
+    </div>
+  );
+
+  if (!pageReady) {
+    return <PolicyHolderSkeleton />;
+  }
 
   return (
     <>

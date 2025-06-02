@@ -5,10 +5,23 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "@/hooks/use-toast";
 import dynamic from 'next/dynamic';
 
-const Step1Form = dynamic(() => import('@/components/quote/Step1Form'), { ssr: false });
-const Step2Form = dynamic(() => import('@/components/quote/Step2Form'), { ssr: false });
-const Step3Form = dynamic(() => import('@/components/quote/Step3Form'), { ssr: false });
-const Step4Form = dynamic(() => import('@/components/quote/Step4Form'), { ssr: false });
+// Loading component for dynamically imported forms
+const StepFormLoading = () => (
+    <div className="p-8 text-center text-gray-500">Loading form...</div>
+);
+
+const Step1Form = dynamic(() => import('@/components/quote/Step1Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
+const Step2Form = dynamic(() => import('@/components/quote/Step2Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
+const Step3Form = dynamic(() => import('@/components/quote/Step3Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
+const Step4Form = dynamic(() => import('@/components/quote/Step4Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
 
 function flattenPolicy(policy: any) {
     return {
@@ -73,8 +86,11 @@ export default function EditPolicy() {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [emailSent, setEmailSent] = useState(false);
     const [showQuoteResults, setShowQuoteResults] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // For initial data load
+
     useEffect(() => {
         async function fetchPolicy() {
+            setIsLoading(true);
             // Try to fetch by quoteNumber first
             let res = await fetch(`/api/quote/step?quoteNumber=${id}`);
             if (res.ok) {
@@ -82,6 +98,7 @@ export default function EditPolicy() {
                 if (data.quote) {
                     console.log('Found policy by quote number: ',data.quote)
                     setFormState(flattenPolicy(data.quote));
+                    setIsLoading(false);
                     return;
                 }
             }
@@ -91,15 +108,51 @@ export default function EditPolicy() {
                 const data = await res.json();
                 if (data.policy) {
                     setFormState(flattenPolicy(data.policy));
+                    setIsLoading(false);
+                    return;
                 }
             }
+            // If neither found, stop loading
+            setIsLoading(false);
         }
         fetchPolicy();
     }, [id]);
+
     useEffect(() => {
         // REMOVE admin auth check, allow access to all
     }, []);
-    if (!formState) return <div>Loading...</div>;
+
+    // Skeleton Loader Component
+    const EditPolicySkeleton = () => (
+        <div className="p-6 animate-pulse">
+            {/* Header Skeleton */}
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
+                <div className="h-8 bg-gray-200 rounded w-1/3"></div> {/* Title */}
+                <div className="h-10 bg-gray-200 rounded-md w-full sm:w-36"></div> {/* Back Button */}
+            </div>
+            {/* Stepper Skeleton */}
+            <div className="mb-8 flex flex-row justify-center max-w-4xl mx-auto items-center gap-2 sm:gap-3 md:gap-10">
+                {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-10 bg-gray-200 rounded-full flex-1 min-w-0 md:flex-initial md:w-48"></div>
+                ))}
+            </div>
+            {/* Form Area Skeleton */}
+            <div className="bg-white shadow-md rounded-lg p-6">
+                <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div> {/* Form Title */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="space-y-2">
+                            <div className="h-4 bg-gray-200 rounded w-1/3"></div> {/* Label */}
+                            <div className="h-10 bg-gray-200 rounded-md"></div> {/* Input */}
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-8 h-12 bg-gray-200 rounded-md w-1/3 ml-auto"></div> {/* Save/Continue Button */}
+            </div>
+        </div>
+    );
+    if (isLoading || !formState) return <EditPolicySkeleton />;
+
     const handleInputChange = (field: string, value: any) => {
         setFormState((prev: any) => ({ ...prev, [field]: value }));
         if (errors[field]) {
@@ -195,7 +248,7 @@ export default function EditPolicy() {
     // Stepper UI
     return (
         <div className="p-6">
-            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4"> {/* Ensure this matches skeleton */}
                 <h1 className="text-2xl text-center sm:text-left font-bold text-gray-900 order-1 sm:order-none">Edit Quote</h1>
                 <Button className="w-full sm:w-auto order-2 sm:order-none" variant="outline" size="sm" onClick={() => router.push('/admin/policies')}>Back to Policies</Button>
             </div>

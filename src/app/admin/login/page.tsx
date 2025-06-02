@@ -15,12 +15,18 @@ export default function AdminLogin() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [pageLoading, setPageLoading] = useState(true);
 
     useEffect(() => {
         if (typeof window !== "undefined" && localStorage.getItem("admin_logged_in") === "true") {
             router.replace("/admin");
+        } else {
+            // Simulate a brief loading period or wait for other initializations if any
+            const timer = setTimeout(() => setPageLoading(false), 200); // Adjust delay as needed
+            return () => clearTimeout(timer);
         }
-    }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // router dependency removed to prevent re-triggering on navigation
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,6 +41,37 @@ export default function AdminLogin() {
             setError("Invalid email or password");
         }
     };
+
+    const LoginSkeleton = () => (
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 animate-pulse">
+            <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="flex justify-center">
+                    <div className="h-12 w-12 bg-gray-300 rounded-full"></div>
+                </div>
+                <div className="mt-6 h-8 bg-gray-300 rounded w-3/4 mx-auto"></div>
+                <div className="mt-2 h-4 bg-gray-300 rounded w-1/2 mx-auto"></div>
+            </div>
+            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                    <div className="space-y-6">
+                        <div>
+                            <div className="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
+                            <div className="h-10 bg-gray-200 rounded-md"></div>
+                        </div>
+                        <div>
+                            <div className="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
+                            <div className="h-10 bg-gray-200 rounded-md"></div>
+                        </div>
+                        <div className="h-12 bg-blue-300 rounded-md"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    if (pageLoading) {
+        return <LoginSkeleton />;
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -78,7 +115,7 @@ export default function AdminLogin() {
                             />
                         </FormField>
                         <div>
-                            <Button type="submit" variant="primary" fullWidth size="lg">
+                            <Button type="submit" variant="primary" size="lg">
                                 Sign In
                             </Button>
                         </div>

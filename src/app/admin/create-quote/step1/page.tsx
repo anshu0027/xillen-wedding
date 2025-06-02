@@ -37,6 +37,7 @@ export default function QuoteGenerator() {
   const [showQuoteResults, setShowQuoteResults] = useState(false);
   const [showSpecialActivitiesModal, setShowSpecialActivitiesModal] =
     useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handle form field changes
   const handleInputChange = (
@@ -138,8 +139,12 @@ export default function QuoteGenerator() {
   // Handle calculate quote
   const handleCalculateQuote = () => {
     if (validateForm()) {
+      setIsLoading(true);
       dispatch({ type: "CALCULATE_QUOTE" });
-      setShowQuoteResults(true);
+      setTimeout(() => {
+        setShowQuoteResults(true);
+        setIsLoading(false);
+      }, 1500);
     } else {
       // Show toast for each missing field
       Object.entries(errors).forEach(([field, message]) =>
@@ -533,10 +538,10 @@ export default function QuoteGenerator() {
               variant="primary"
               size="lg"
               onClick={handleCalculateQuote}
-              icon={<DollarSign size={18} />}
-              fullWidth
+              // 
               className="transition-transform duration-150"
             >
+              <DollarSign size={18} />
               Calculate Quote
             </Button>
             {/* onSave button is not part of this page's logic, so it's omitted */}
@@ -545,7 +550,7 @@ export default function QuoteGenerator() {
       </div>
 
       {/* Quote Results */}
-      {showQuoteResults && (
+      {(showQuoteResults || isLoading) && (
         <Card
           title={
             <span className="text-xl font-bold text-blue-800">
@@ -557,7 +562,7 @@ export default function QuoteGenerator() {
               Quote #{state.quoteNumber}
             </span>
           }
-          icon={<DollarSign size={24} className="text-blue-600" />}
+          // 
           className="mb-8 border-0 bg-white shadow-lg"
           footer={
             <div className="flex justify-end">
@@ -567,6 +572,7 @@ export default function QuoteGenerator() {
                 onClick={handleContinue}
                 className="transition-transform duration-150 hover:scale-105"
               >
+                <DollarSign size={24} className="text-blue-600" />
                 Continue to Event Details
               </Button>
             </div>
@@ -578,36 +584,60 @@ export default function QuoteGenerator() {
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1">
                   Total Premium
                 </h3>
-                <p className="text-2xl sm:text-3xl font-bold text-blue-700">
-                  {formatCurrency(state.totalPremium)}
-                </p>
+                {isLoading ? (
+                  <div className="h-8 w-32 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-700">
+                    {formatCurrency(state.totalPremium)}
+                  </p>
+                )}
               </div>
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
                   Premium Breakdown:
                 </h4>
-                <div className="space-y-2 text-gray-700">
-                  <div className="flex justify-between text-sm">
-                    <span>Core Coverage:</span>
-                    <span className="font-medium">
-                      {formatCurrency(state.basePremium)}
-                    </span>
-                  </div>
-                  {state.liabilityCoverage !== "none" && (
-                    <div className="flex justify-between text-sm">
-                      <span>Liability Coverage:</span>
-                      <span className="font-medium">
-                        {formatCurrency(state.liabilityPremium)}
-                      </span>
-                    </div>
-                  )}
-                  {state.liquorLiability && (
-                    <div className="flex justify-between text-sm">
-                      <span>Host Liquor Liability:</span>
-                      <span className="font-medium">
-                        {formatCurrency(state.liquorLiabilityPremium)}
-                      </span>
-                    </div>
+                <div className="space-y-1 text-gray-700">
+                  {isLoading ? (
+                    <>
+                      {/* Skeleton for Premium Breakdown */}
+                      <div className="flex justify-between text-sm py-1">
+                        <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/4 animate-pulse"></div>
+                      </div>
+                      <div className="flex justify-between text-sm py-1">
+                        <div className="h-4 bg-gray-200 rounded w-2/5 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/5 animate-pulse"></div>
+                      </div>
+                      <div className="flex justify-between text-sm py-1">
+                        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/6 animate-pulse"></div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span>Core Coverage:</span>
+                        <span className="font-medium">
+                          {formatCurrency(state.basePremium)}
+                        </span>
+                      </div>
+                      {state.liabilityCoverage !== "none" && (
+                        <div className="flex justify-between text-sm">
+                          <span>Liability Coverage:</span>
+                          <span className="font-medium">
+                            {formatCurrency(state.liabilityPremium)}
+                          </span>
+                        </div>
+                      )}
+                      {state.liquorLiability && (
+                        <div className="flex justify-between text-sm">
+                          <span>Host Liquor Liability:</span>
+                          <span className="font-medium">
+                            {formatCurrency(state.liquorLiabilityPremium)}
+                          </span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -618,49 +648,75 @@ export default function QuoteGenerator() {
                 Coverage Summary
               </h3>
               <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex justify-between">
-                  <span>Event Type:</span>
-                  <span className="font-medium">
-                    {
-                      EVENT_TYPES.find((t) => t.value === state.eventType)
-                        ?.label
-                    }
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Event Date:</span>
-                  <span className="font-medium">
-                    {state.eventDate
-                      ? new Date(state.eventDate).toLocaleDateString()
-                      : "N/A"}
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Core Coverage:</span>
-                  <span className="font-medium">
-                    {
-                      COVERAGE_LEVELS.find(
-                        (l) => l.value === state.coverageLevel?.toString()
-                      )?.label
-                    }
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Liability Coverage:</span>
-                  <span className="font-medium">
-                    {
-                      LIABILITY_OPTIONS.find(
-                        (o) => o.value === state.liabilityCoverage
-                      )?.label
-                    }
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Host Liquor Liability:</span>
-                  <span className="font-medium">
-                    {state.liquorLiability ? "Included" : "Not Included"}
-                  </span>
-                </li>
+                {isLoading ? (
+                  <>
+                    {/* Skeleton for Coverage Summary */}
+                    {[...Array(5)].map((_, i) => (
+                      <li key={i} className="flex justify-between py-1">
+                        <div
+                          className={`h-4 bg-gray-200 rounded animate-pulse ${
+                            i % 2 === 0 ? "w-1/3" : "w-2/5"
+                          }`}
+                        ></div>
+                        <div
+                          className={`h-4 bg-gray-200 rounded animate-pulse ${
+                            i % 2 === 0 ? "w-1/4" : "w-1/5"
+                          }`}
+                        ></div>
+                      </li>
+                    ))}
+                    <li className="flex justify-between py-1">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/3"></div>
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/4"></div>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li className="flex justify-between">
+                      <span>Event Type:</span>
+                      <span className="font-medium">
+                        {
+                          EVENT_TYPES.find((t) => t.value === state.eventType)
+                            ?.label
+                        }
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Event Date:</span>
+                      <span className="font-medium">
+                        {state.eventDate
+                          ? new Date(state.eventDate).toLocaleDateString()
+                          : "N/A"}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Core Coverage:</span>
+                      <span className="font-medium">
+                        {
+                          COVERAGE_LEVELS.find(
+                            (l) => l.value === state.coverageLevel?.toString()
+                          )?.label
+                        }
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Liability Coverage:</span>
+                      <span className="font-medium">
+                        {
+                          LIABILITY_OPTIONS.find(
+                            (o) => o.value === state.liabilityCoverage
+                          )?.label
+                        }
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Host Liquor Liability:</span>
+                      <span className="font-medium">
+                        {state.liquorLiability ? "Included" : "Not Included"}
+                      </span>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 

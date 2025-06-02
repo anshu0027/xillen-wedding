@@ -1,13 +1,38 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/Button";
 
 const RetrieveQuote = () => {
     const [input, setInput] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false); // Renamed for clarity
+    const [pageLoading, setPageLoading] = useState(true); // For initial page skeleton
     const router = useRouter();
+
+    useEffect(() => {
+        // Simulate a brief loading period for the page skeleton
+        const timer = setTimeout(() => setPageLoading(false), 200); // Adjust delay as needed
+        return () => clearTimeout(timer);
+    }, []);
+
+    const RetrieveQuoteSkeleton = () => (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 animate-pulse">
+            <div className="w-full max-w-md p-6 bg-white rounded-lg shadow">
+                <div className="space-y-4">
+                    <div className="h-5 bg-gray-300 rounded w-1/3"></div> {/* Label */}
+                    <div className="h-10 bg-gray-200 rounded-lg"></div> {/* Input */}
+                    <div className="h-12 bg-blue-300 rounded-md"></div> {/* Button */}
+                </div>
+            </div>
+        </div>
+    );
+
+    // Show skeleton if initial page is loading OR if form is submitting
+    if (pageLoading || isSubmitting) {
+        return <RetrieveQuoteSkeleton />;
+    }
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
@@ -20,7 +45,7 @@ const RetrieveQuote = () => {
                             toast.error("Please enter a Quote or Policy ID");
                             return;
                         }
-                        setLoading(true);
+                        setIsSubmitting(true);
                         try {
                             const res = await fetch(`/api/quote/step?quoteNumber=${input.trim()}`);
                             if (!res.ok) {
@@ -47,7 +72,7 @@ const RetrieveQuote = () => {
                         } catch (error) {
                             toast.error("Error retrieving quote or policy");
                         } finally {
-                            setLoading(false);
+                            setIsSubmitting(false);
                         }
                     }}
                 >
@@ -60,16 +85,16 @@ const RetrieveQuote = () => {
                         className="w-full mt-1 px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
                         value={input}
                         onChange={e => setInput(e.target.value)}
-                        disabled={loading}
+                        disabled={isSubmitting}
                         autoFocus
                     />
                     <Button
                         type="submit"
                         variant="primary"
                         className="w-full"
-                        disabled={loading}
+                        disabled={isSubmitting}
                     >
-                        {loading ? "Retrieving..." : "Retrieve"}
+                        {isSubmitting ? "Retrieving..." : "Retrieve"}
                     </Button>
                 </form>
             </div>

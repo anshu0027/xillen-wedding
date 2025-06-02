@@ -114,10 +114,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Button
                   variant="outline"
                   size="sm"
-                  fullWidth
-                  icon={<LogOut size={16} />}
+                  // 
                   onClick={handleLogout}
                 >
+                  <LogOut size={16} />
                   Sign Out
                 </Button>
               </div>

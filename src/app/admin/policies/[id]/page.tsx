@@ -129,8 +129,80 @@ export default function PolicyDetail() {
         }
     };
 
+    // Skeleton Component
+    const PolicyDetailSkeleton = () => (
+        <div className="bg-gray-50 min-h-screen animate-pulse">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header Skeleton */}
+                <div className="bg-white shadow-sm rounded-xl p-6 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center">
+                            <div className="mr-4 p-2 rounded-full bg-gray-200 h-10 w-10"></div>
+                            <div>
+                                <div className="h-7 bg-gray-200 rounded w-48 mb-2"></div> {/* "Policy #..." */}
+                                <div className="flex items-center mt-1">
+                                    <div className="h-4 bg-gray-200 rounded w-32"></div> {/* "Issued..." */}
+                                    <div className="mx-2 text-gray-300">•</div>
+                                    <div className="h-5 bg-gray-200 rounded-full w-20"></div> {/* Status */}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <div className="h-10 bg-gray-200 rounded-md w-32"></div> {/* Email Policy */}
+                            <div className="h-10 bg-gray-200 rounded-md w-32"></div> {/* Edit Policy */}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Policy Summary Skeleton */}
+                <div className="bg-white shadow-sm rounded-xl p-6 mb-6">
+                    <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div> {/* Title "Policy Summary" */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="bg-gray-100 rounded-lg p-4">
+                                <div className="flex items-center">
+                                    <div className="bg-gray-200 rounded-full h-8 w-8 mr-3"></div> {/* Icon */}
+                                    <div>
+                                        <div className="h-3 bg-gray-200 rounded w-20 mb-1"></div> {/* Label */}
+                                        <div className="h-5 bg-gray-200 rounded w-24"></div> {/* Value */}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Details Section Skeleton (covers Policy Details, Event Info, Additional Info) */}
+                    {[...Array(2)].map((_, sectionIndex) => ( // For main details and contact info
+                        <div key={sectionIndex} className={`bg-white shadow-sm rounded-xl p-6 ${sectionIndex === 0 ? 'lg:col-span-2' : ''}`}>
+                            <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div> {/* Section Title */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {[...Array(sectionIndex === 0 ? 6 : 4)].map((_, i) => ( // Number of items per section
+                                    <div key={i}>
+                                        <div className="h-4 bg-gray-200 rounded w-1/2 mb-1"></div> {/* Label */}
+                                        <div className="h-5 bg-gray-200 rounded w-3/4"></div> {/* Value */}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                     {/* Event/Additional Info Section Skeleton */}
+                    <div className="bg-white shadow-sm rounded-xl p-6 mt-6 lg:col-span-3">
+                        <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div> {/* Section Title */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[...Array(5)].map((_, i) => ( // Number of items
+                                <div key={i}><div className="h-4 bg-gray-200 rounded w-1/2 mb-1"></div><div className="h-5 bg-gray-200 rounded w-3/4"></div></div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     if (loading) {
-        return <div className="p-8 max-w-7xl mx-auto"><div className="animate-pulse h-8 bg-gray-200 rounded w-1/3 mb-6"></div></div>;
+        return <PolicyDetailSkeleton />;
     }
     if (error) {
         return <div className="p-8 max-w-7xl mx-auto"><div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div></div>;
@@ -166,17 +238,17 @@ export default function PolicyDetail() {
                         <div className="flex gap-3">
                             <Button
                                 variant="outline"
-                                icon={<Mail size={18} />}
                                 onClick={handleEmailPolicy}
                                 disabled={isEmailSent}
                             >
+                                <Mail size={18} />
                                 {isEmailSent ? "Sending..." : "Email Policy"}
                             </Button>
                             <Button
                                 variant="outline"
-                                icon={<Edit size={18} />}
                                 onClick={handleEdit}
                             >
+                                <Edit size={18} />
                                 Edit Policy
                             </Button>
                         </div>

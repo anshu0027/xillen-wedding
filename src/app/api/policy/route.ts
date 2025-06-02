@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+// import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
-
+import  { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url, "http://localhost");
@@ -342,6 +341,8 @@ export async function PUT(req: NextRequest) {
               },
               create: {
                 ...eventFields,
+                eventDate: fields.eventDate ? new Date(fields.eventDate) : new Date(),
+                maxGuests: fields.maxGuests ? parseInt(fields.maxGuests) : 0,
                 venue: { create: venueFields },
               },
             },
@@ -366,6 +367,8 @@ export async function PUT(req: NextRequest) {
           upsert: {
             update: {
               ...eventFields,
+              eventDate: fields.eventDate ? new Date(fields.eventDate) : (policyRecord.quote.event?.eventDate ?? new Date()),
+              maxGuests: fields.maxGuests ? parseInt(fields.maxGuests) : (policyRecord.quote.event?.maxGuests ?? 0),
               venue: {
                 upsert: {
                   update: venueFields,
@@ -375,6 +378,8 @@ export async function PUT(req: NextRequest) {
             },
             create: {
               ...eventFields,
+              eventDate: fields.eventDate ? new Date(fields.eventDate) : new Date(),
+              maxGuests: fields.maxGuests ? parseInt(fields.maxGuests) : 0,
               venue: { create: venueFields },
             },
           },

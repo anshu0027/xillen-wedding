@@ -15,17 +15,94 @@ import {
 } from "@/utils/constants";
 import { isEmpty, isValidZip } from "@/utils/validators";
 import dynamic from "next/dynamic";
-import { Toaster } from "@/components/ui/toaster";
+// import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/hooks/use-toast";
 
 const QuotePreview = dynamic(() => import("@/components/ui/QuotePreview"), {
   ssr: false,
+  loading: () => (
+    <div className="w-full h-96 flex items-center justify-center bg-gray-100 rounded-lg shadow">
+      <p className="text-gray-500">Loading Preview...</p>
+    </div>
+  ),
 });
+
+// Skeleton Component for Step 2
+const EventInformationSkeleton = () => (
+  <div className="w-full pb-12 animate-pulse">
+    {/* Honoree Information Skeleton */}
+    <div className="mb-10 shadow-2xl border-0 bg-gray-100 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+      <div className="flex items-center justify-center text-center mb-6 gap-4">
+        <div className="h-9 w-9 bg-gray-300 rounded-full"></div>
+        <div>
+          <div className="h-6 bg-gray-300 rounded w-48 mb-2"></div>
+          <div className="h-4 bg-gray-300 rounded w-64"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="space-y-4">
+            <div className="h-5 bg-gray-300 rounded w-1/3 mx-auto mb-3"></div> {/* Honoree Title */}
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-1/4 mx-auto"></div> {/* Label */}
+              <div className="h-10 bg-gray-200 rounded w-72 mx-auto"></div> {/* Input */}
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-1/4 mx-auto"></div> {/* Label */}
+              <div className="h-10 bg-gray-200 rounded w-72 mx-auto"></div> {/* Input */}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Venue Information Skeleton */}
+    <div className="mb-8 shadow-lg border-0 bg-gray-100 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+      <div className="flex items-center justify-center text-center mb-6 gap-4">
+        <div className="h-9 w-9 bg-gray-300 rounded-full"></div>
+        <div>
+          <div className="h-6 bg-gray-300 rounded w-56 mb-2"></div>
+          <div className="h-4 bg-gray-300 rounded w-72"></div>
+        </div>
+      </div>
+      <div className="space-y-8 w-full px-2 sm:px-4 md:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-1/4 mx-auto"></div> {/* Label */}
+              <div className="h-10 bg-gray-200 rounded w-72 mx-auto"></div> {/* Select */}
+            </div>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-300 rounded w-1/4 mx-auto"></div> {/* Label */}
+          <div className="h-10 bg-gray-200 rounded w-[92%] mx-auto"></div> {/* Input */}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          {[...Array(4)].map((_, i) => ( // For Address, City, State, Zip pairs
+            <div key={i} className="space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-1/4 mx-auto"></div> {/* Label */}
+              <div className="h-10 bg-gray-200 rounded w-72 mx-auto"></div> {/* Input/Select */}
+            </div>
+          ))}
+        </div>
+        <div className="h-10 bg-gray-200 rounded w-3/4 mx-auto mt-4"></div> {/* Checkbox */}
+      </div>
+    </div>
+
+    {/* Buttons Skeleton */}
+    <div className="flex flex-col sm:flex-row justify-between items-center mt-10 gap-4 w-full">
+      <div className="h-12 bg-gray-200 rounded w-full sm:w-40"></div>
+      <div className="h-12 bg-gray-300 rounded w-full sm:w-48"></div>
+    </div>
+  </div>
+);
 
 export default function EventInformation() {
   const router = useRouter();
   const { state, dispatch } = useQuote();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pageReady, setPageReady] = useState(false);
 
   useEffect(() => {
     // Replace with real admin auth check
@@ -36,21 +113,30 @@ export default function EventInformation() {
         localStorage.getItem("admin_logged_in") === "true"
       );
     };
-    if (!isAdminAuthenticated()) {
-      router.replace("/admin/login");
-    }
-  }, [router]);
 
-  useEffect(() => {
-    if (!state.step1Complete) {
-      router.replace("/admin/create-quote/step1");
-    }
-  }, [state.step1Complete, router]);
+    // Simulate page readiness and perform checks
+    const timer = setTimeout(() => {
+      if (!isAdminAuthenticated()) {
+        router.replace("/admin/login");
+        return; // Stop further execution if redirecting
+      }
+      if (!state.step1Complete) {
+        router.replace("/admin/create-quote/step1");
+        return; // Stop further execution if redirecting
+      }
+      setPageReady(true); // Page is ready to be displayed
+    }, 300); // Short delay to make skeleton visible for demo purposes
+
+    return () => clearTimeout(timer);
+  }, [router, state.step1Complete]); // state.step1Complete is a dependency
 
   const handleInputChange = (
     field: keyof QuoteState,
     value: string | boolean
   ) => {
+    // Ensure pageReady is true before allowing input changes if needed,
+    // though typically inputs would be disabled or not present if !pageReady
+    // For this setup, direct interaction implies pageReady is true.
     dispatch({ type: "UPDATE_FIELD", field, value });
     if (errors[field]) {
       setErrors((prev) => {
@@ -97,10 +183,7 @@ export default function EventInformation() {
     } else {
       // Show toast for each missing field
       Object.entries(errors).forEach(([field, message]) => {
-        toast.error(message, {
-          variant: "custom",
-          className: "bg-white text-red-600",
-        });
+        toast.error(message);
       });
       const firstErrorField = Object.keys(errors)[0];
       if (firstErrorField) {
@@ -113,6 +196,10 @@ export default function EventInformation() {
   };
 
   const isCruiseShip = state.ceremonyLocationType === "cruise_ship";
+
+  if (!pageReady) {
+    return <EventInformationSkeleton />;
+  }
 
   return (
     <>
@@ -575,11 +662,7 @@ export default function EventInformation() {
             >
               <Checkbox
                 id="venueAsInsured"
-                label={
-                  <span className="font-medium">
-                    Add this venue as an Additional Insured on my policy
-                  </span>
-                }
+                label="Add this venue as an Additional Insured on my policy"
                 checked={state.venueAsInsured}
                 onChange={(checked) =>
                   handleInputChange("venueAsInsured", checked)

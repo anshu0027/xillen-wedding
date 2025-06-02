@@ -36,10 +36,18 @@ export default function QuoteGenerator() {
   const [showQuoteResults, setShowQuoteResults] = useState(false);
   const [showSpecialActivitiesModal, setShowSpecialActivitiesModal] =
     useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+
 
   // Clear quoteNumber on mount to always start a new quote
   useEffect(() => {
     localStorage.removeItem("quoteNumber");
+  }, []);
+
+  useEffect(() => {
+    // Simulate a brief loading period for the page skeleton
+    const timer = setTimeout(() => setPageLoading(false), 200); // Adjust delay as needed
+    return () => clearTimeout(timer);
   }, []);
 
   // Handle form field changes
@@ -182,7 +190,7 @@ export default function QuoteGenerator() {
                 const emailData = await emailRes.json();
                 toast.error(
                   "Failed to send email: " +
-                    (emailData.error || "Unknown error")
+                  (emailData.error || "Unknown error")
                 );
               }
             } catch (err) {
@@ -220,10 +228,7 @@ export default function QuoteGenerator() {
       router.push("/customer/event-information");
     } else {
       Object.entries(errors).forEach(([, msg]) =>
-        toast.error(msg, {
-          variant: "custom",
-          className: "bg-white text-red-600",
-        })
+        toast.error(msg)
       );
       const firstErrorField = Object.keys(errors)[0];
       if (firstErrorField) {
@@ -259,6 +264,64 @@ export default function QuoteGenerator() {
     }
   };
 
+
+  const QuoteGeneratorSkeleton = () => (
+    <div className="animate-pulse">
+      <div className="w-full mx-auto mb-10 text-center shadow-2xl bg-gray-100/90 rounded-2xl p-8 sm:p-10 md:p-12">
+        <div className="mb-8">
+          <div className="h-10 bg-gray-300 rounded w-3/4 mx-auto mb-3"></div> {/* Title */}
+          <div className="h-6 bg-gray-300 rounded w-1/2 mx-auto"></div>      {/* Subtitle */}
+        </div>
+        <div className="grid lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1 gap-10">
+          {[...Array(7)].map((_, i) => ( // 7 form fields before COVID disclosure
+            <div key={i} className="mb-6 flex flex-col items-center">
+              <div className="h-5 bg-gray-300 rounded w-1/2 mb-2"></div> {/* Label */}
+              <div className="h-10 bg-gray-200 rounded w-[325px]"></div> {/* Input/Select */}
+            </div>
+          ))}
+        </div>
+
+        {/* COVID-19 Disclosure Skeleton */}
+        <div className="w-full bg-yellow-100 border-l-4 border-yellow-300 rounded-lg p-4 mt-8 flex items-start gap-3">
+          <div className="h-6 w-6 bg-yellow-200 rounded-full mt-1"></div> {/* Icon */}
+          <div>
+            <div className="h-5 bg-yellow-200 rounded w-1/3 mb-2"></div> {/* Title */}
+            <div className="h-10 bg-yellow-200 rounded w-full"></div> {/* Checkbox area */}
+          </div>
+        </div>
+
+        <div className="flex justify-center mt-10">
+          <div className="h-12 bg-blue-300 rounded-md w-48"></div> {/* Calculate Button */}
+        </div>
+      </div>
+
+      {/* Quote Results Skeleton (conditionally shown, but part of initial structure if showQuoteResults were true) */}
+      {/* For simplicity, we'll just show a basic placeholder if it were to be visible */}
+      {/* A more complex skeleton would check showQuoteResults, but this is for initial page load primarily */}
+      <div className="mb-8 border-0 bg-gray-100 shadow-lg rounded-lg p-6">
+        <div className="h-7 bg-gray-300 rounded w-1/2 mb-2"></div> {/* Card Title */}
+        <div className="h-5 bg-gray-300 rounded w-1/3 mb-6"></div> {/* Card Subtitle */}
+        <div className="space-y-6">
+          <div className="bg-gray-200 rounded-xl p-6">
+            <div className="h-6 bg-gray-300 rounded w-1/3 mx-auto mb-2"></div>
+            <div className="h-10 bg-gray-300 rounded w-1/2 mx-auto mb-4"></div>
+            <div className="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-300 rounded w-2/5 mb-1"></div>
+            <div className="h-4 bg-gray-300 rounded w-2/5"></div>
+          </div>
+        </div>
+        <div className="flex justify-end mt-6">
+          <div className="h-12 bg-blue-300 rounded-md w-48"></div> {/* Continue Button */}
+        </div>
+      </div>
+    </div>
+  );
+
+
+  if (pageLoading) {
+    return <QuoteGeneratorSkeleton />;
+  }
+
   return (
     <>
       <div className="w-full mx-auto mb-10 text-center shadow-2xl border-0 bg-white/90 rounded-2xl p-8 sm:p-10 md:p-12">
@@ -286,9 +349,8 @@ export default function QuoteGenerator() {
                 onChange={(e) =>
                   handleInputChange("residentState", e.target.value)
                 }
-                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${
-                  errors.residentState ? "border-red-500" : ""
-                }`}
+                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${errors.residentState ? "border-red-500" : ""
+                  }`}
               >
                 <option value="">Select your state</option>
                 {US_STATES.map((option) => (
@@ -314,9 +376,8 @@ export default function QuoteGenerator() {
                 id="eventType"
                 value={state.eventType}
                 onChange={(e) => handleInputChange("eventType", e.target.value)}
-                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${
-                  errors.eventType ? "border-red-500" : ""
-                }`}
+                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${errors.eventType ? "border-red-500" : ""
+                  }`}
               >
                 <option value="">Select event type</option>
                 {EVENT_TYPES.map((option) => (
@@ -342,9 +403,8 @@ export default function QuoteGenerator() {
                 id="maxGuests"
                 value={state.maxGuests}
                 onChange={(e) => handleInputChange("maxGuests", e.target.value)}
-                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${
-                  errors.maxGuests ? "border-red-500" : ""
-                }`}
+                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${errors.maxGuests ? "border-red-500" : ""
+                  }`}
               >
                 <option value="">Select guest count range</option>
                 {GUEST_RANGES.map((option) => (
@@ -410,9 +470,8 @@ export default function QuoteGenerator() {
                 onChange={(e) =>
                   handleInputChange("coverageLevel", parseInt(e.target.value))
                 }
-                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${
-                  errors.coverageLevel ? "border-red-500" : ""
-                }`}
+                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${errors.coverageLevel ? "border-red-500" : ""
+                  }`}
               >
                 <option value="">Select coverage level</option>
                 {COVERAGE_LEVELS.map((level) => (
@@ -443,9 +502,8 @@ export default function QuoteGenerator() {
                 onChange={(e) =>
                   handleInputChange("liabilityCoverage", e.target.value)
                 }
-                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${
-                  errors.liabilityCoverage ? "border-red-500" : ""
-                }`}
+                className={`w-full p-2 pr-8 border rounded text-center appearance-none ${errors.liabilityCoverage ? "border-red-500" : ""
+                  }`}
               >
                 {LIABILITY_OPTIONS.map((option) => (
                   <option
@@ -478,13 +536,12 @@ export default function QuoteGenerator() {
                 <span className="font-medium">
                   Yes, add Host Liquor Liability coverage{" "}
                   {!isLiquorLiabilityDisabled && state.maxGuests
-                    ? `(+$${
-                        LIABILITY_OPTIONS.find(
-                          (o) => o.value === state.liabilityCoverage && o.isNew
-                        )
-                          ? LIQUOR_LIABILITY_PREMIUMS_NEW[state.maxGuests]
-                          : LIQUOR_LIABILITY_PREMIUMS[state.maxGuests]
-                      })`
+                    ? `(+$${LIABILITY_OPTIONS.find(
+                      (o) => o.value === state.liabilityCoverage && o.isNew
+                    )
+                      ? LIQUOR_LIABILITY_PREMIUMS_NEW[state.maxGuests]
+                      : LIQUOR_LIABILITY_PREMIUMS[state.maxGuests]
+                    })`
                     : ""}
                 </span>
               }
@@ -566,10 +623,9 @@ export default function QuoteGenerator() {
             variant="primary"
             size="lg"
             onClick={handleCalculateQuote}
-            icon={<DollarSign size={18} />}
-            fullwidth="true"
             className="transition-transform duration-150 hover:scale-105"
           >
+            <DollarSign size={18} />
             Calculate Quote
           </Button>
         </div>

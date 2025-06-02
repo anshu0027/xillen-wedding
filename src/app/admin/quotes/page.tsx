@@ -40,6 +40,7 @@ export default function Quotes() {
     const [exportType, setExportType] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [loading, setLoading] = useState(true);
     const itemsPerPage = 15;
 
     const router = useRouter();
@@ -61,12 +62,14 @@ export default function Quotes() {
 
     useEffect(() => {
         async function fetchQuotes() {
+            setLoading(true);
             const res = await fetch("/api/quote/step?allQuotes=1", { method: "GET" });
             if (res.ok) {
                 const data = await res.json();
                 setQuotes(processQuotesData(data.quotes));
                 console.log(data);
             }
+            setLoading(false);
         }
         fetchQuotes();
     }, []); // processQuotesData can be memoized with useCallback if defined outside or becomes a dependency
@@ -325,6 +328,61 @@ export default function Quotes() {
 
         doc.save(`quotes_export_${exportType}.pdf`);
     };
+
+    // Skeleton Components
+    const QuoteRowSkeleton = () => (
+        <tr className="animate-pulse">
+            <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+            <td className="px-6 py-4 whitespace-nowrap">
+                <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-32"></div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+            <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+            <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 rounded w-12"></div></td>
+            <td className="px-6 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
+            <td className="px-6 py-4 whitespace-nowrap text-right">
+                <div className="flex justify-end gap-2">
+                    <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                    <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                    <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                </div>
+            </td>
+        </tr>
+    );
+
+    if (loading) {
+        return (
+            <div className="p-6 animate-pulse">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 px-2 sm:px-0">
+                    <div>
+                        <div className="h-7 bg-gray-200 rounded w-48 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-64"></div>
+                    </div>
+                    <div className="mt-2 sm:mt-0 flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <div className="h-10 bg-gray-200 rounded-md w-full sm:w-40"></div>
+                        <div className="h-10 bg-gray-200 rounded-3xl w-full sm:w-36"></div>
+                        <div className="h-10 bg-gray-200 rounded-md w-full sm:w-32"></div>
+                        <div className="h-10 bg-gray-200 rounded-md w-full sm:w-32"></div>
+                    </div>
+                </div>
+                <Card>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div className="h-10 bg-gray-200 rounded-md flex-1 max-w-md"></div>
+                        <div className="h-10 bg-gray-200 rounded-md w-32"></div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            {/* Skeleton Table Header can be added if desired, or omit for simplicity */}
+                            <tbody>
+                                {[...Array(5)].map((_, i) => <QuoteRowSkeleton key={i} />)}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6">

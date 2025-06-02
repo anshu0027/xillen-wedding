@@ -14,13 +14,17 @@ export default function Payment() {
   const router = useRouter();
   const [selected, setSelected] = useState("netbanking");
   const [processing, setProcessing] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true); // For initial page skeleton
   const [isRetrieved, setIsRetrieved] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsRetrieved(localStorage.getItem("retrievedQuote") === "true");
     }
-  }, []);
+    // Simulate a brief loading period for the page skeleton
+    const timer = setTimeout(() => setPageLoading(false), 200); // Adjust delay as needed
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array means this runs once on mount
 
   const handlePay = () => {
     setProcessing(true);
@@ -35,6 +39,29 @@ export default function Payment() {
       }
     }, 1500);
   };
+
+  const PaymentPageSkeleton = () => (
+    <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-2xl shadow-2xl border border-blue-100 flex flex-col items-center animate-pulse">
+      <div className="h-10 bg-gray-300 rounded w-3/4 mb-8"></div> {/* Title */}
+      <div className="space-y-4 w-full mb-10">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl">
+            <div className="h-6 w-6 bg-gray-300 rounded"></div> {/* Radio + Icon placeholder */}
+            <div className="h-6 bg-gray-300 rounded w-1/2"></div> {/* Label placeholder */}
+          </div>
+        ))}
+      </div>
+      <div className="h-12 bg-blue-300 rounded-md w-full text-lg py-3 mt-2"></div> {/* Pay Now Button */}
+      <div className="h-4 bg-gray-200 rounded w-1/2 mt-6"></div> {/* Footer text */}
+    </div>
+  );
+
+
+  // Show skeleton if initial page is loading OR if payment is processing
+  // (though processing has its own button state, this provides a consistent full-page skeleton feel)
+  if (pageLoading || processing) {
+    return <PaymentPageSkeleton />;
+  }
 
   return (
     <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-2xl shadow-2xl border border-blue-100 flex flex-col items-center">

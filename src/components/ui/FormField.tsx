@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import { HelpCircle } from 'lucide-react';
 
 interface FormFieldProps {
-  label: string;
+  label: React.ReactNode;
   htmlFor: string;
   error?: string;
   required?: boolean;
@@ -11,6 +11,7 @@ interface FormFieldProps {
   className?: string;
   children: React.ReactNode;
 }
+
 
 const FormField: React.FC<FormFieldProps> = ({
   label,

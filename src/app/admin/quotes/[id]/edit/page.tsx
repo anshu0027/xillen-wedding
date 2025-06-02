@@ -3,11 +3,25 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/hooks/use-toast";
+import dynamic from 'next/dynamic';
 
-import Step1Form from '@/components/quote/Step1Form';
-import Step2Form from '@/components/quote/Step2Form';
-import Step3Form from '@/components/quote/Step3Form';
-import Step4Form from '@/components/quote/Step4Form';
+// Dynamically import step forms for lazy loading
+const StepFormLoading = () => (
+    <div className="p-8 text-center text-gray-500">Loading form...</div>
+);
+
+const Step1Form = dynamic(() => import('@/components/quote/Step1Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
+const Step2Form = dynamic(() => import('@/components/quote/Step2Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
+const Step3Form = dynamic(() => import('@/components/quote/Step3Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
+const Step4Form = dynamic(() => import('@/components/quote/Step4Form'), { 
+    ssr: false, loading: StepFormLoading 
+});
 
 // Define the FormState interface
 interface FormState {
@@ -115,6 +129,7 @@ export default function EditQuote() {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [emailSent, setEmailSent] = useState(false);
     const [showQuoteResults, setShowQuoteResults] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // For initial data load
     useEffect(() => {
         async function fetchQuote() {
             const res = await fetch(`/api/quote/step?quoteNumber=${id}`);
@@ -122,14 +137,48 @@ export default function EditQuote() {
             if (res.ok) {
                 const data = await res.json();
                 setFormState(flattenQuote(data.quote));
+                setShowQuoteResults(true); // Assume if editing, quote was already calculated
             }
+            setIsLoading(false);
         }
         fetchQuote();
     }, [id]);
+
     useEffect(() => {
         // REMOVE admin auth check, allow access to all
     }, []);
-    if (!formState) return <div>Loading...</div>;
+
+    // Skeleton Loader Component
+    const EditQuoteSkeleton = () => (
+        <div className="p-6 animate-pulse">
+            {/* Header Skeleton */}
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between mb-6 gap-4">
+                <div className="h-8 bg-gray-200 rounded w-1/3"></div> {/* Title */}
+                <div className="h-10 bg-gray-200 rounded-md w-full sm:w-36"></div> {/* Back Button */}
+            </div>
+            {/* Stepper Skeleton */}
+            <div className="mb-8 flex flex-row justify-center max-w-4xl mx-auto items-center gap-2 sm:gap-3 md:gap-10">
+                {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-10 bg-gray-200 rounded-full flex-1 min-w-0 md:flex-initial md:w-48"></div>
+                ))}
+            </div>
+            {/* Form Area Skeleton */}
+            <div className="bg-white shadow-md rounded-lg p-6">
+                <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div> {/* Form Title */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="space-y-2">
+                            <div className="h-4 bg-gray-200 rounded w-1/3"></div> {/* Label */}
+                            <div className="h-10 bg-gray-200 rounded-md"></div> {/* Input */}
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-8 h-12 bg-gray-200 rounded-md w-1/3 ml-auto"></div> {/* Save/Continue Button */}
+            </div>
+        </div>
+    );
+    if (isLoading || !formState) return <EditQuoteSkeleton />;
+
     const handleInputChange = (field: string, value: string | number | boolean) => {
         setFormState((prev: FormState | null) => ({ ...prev!, [field]: value }));
         if (errors[field]) {

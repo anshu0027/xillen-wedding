@@ -12,9 +12,11 @@ export default function AdminDashboard() {
     const [quoteStats, setQuoteStats] = useState({ current: 0, prev: 0, change: 0 });
     const [revenueStats, setRevenueStats] = useState({ current: 0, prev: 0, change: 0 });
     const [recentQuotes, setRecentQuotes] = useState<any[]>([]); // Will be used for "Recent Transactions" card
+    const [loading, setLoading] = useState(true);
     // recentPayments state is no longer needed as "Recent Transactions" will use recentQuotes
     useEffect(() => {
         async function fetchStats() {
+            setLoading(true);
             const now = new Date();
             // Define date ranges for the last 30 days and the 30 days prior to that
             const currentPeriodStart = new Date(now);
@@ -49,16 +51,94 @@ export default function AdminDashboard() {
 
             // Revenue calculation (already using quotes, no changes needed here)
             // Calculate revenue based on totalPremium from quotes (similar to transactions page's "Total Revenue")
-            const currentRevenue = currentQuotes.reduce((sum, q) => sum + (q.totalPremium || 0), 0);
-            const prevRevenue = prevQuotes.reduce((sum, q) => sum + (q.totalPremium || 0), 0);
+            interface Policy {
+                id: string;
+                policyCreatedAt: string;
+                // Add other relevant fields as needed
+            }
+
+            interface PolicyHolder {
+                firstName?: string;
+                lastName?: string;
+            }
+
+            interface Quote {
+                id: string;
+                quoteNumber?: string;
+                createdAt: string;
+                eventType?: string;
+                totalPremium?: number;
+                policyHolder?: PolicyHolder;
+                // Add other relevant fields as needed
+            }
+
+            interface Stats {
+                current: number;
+                prev: number;
+                change: number;
+            }
+
+            const currentRevenue = currentQuotes.reduce((sum: number, q: Quote) => sum + (q.totalPremium || 0), 0);
+            const prevRevenue = prevQuotes.reduce((sum: number, q: Quote) => sum + (q.totalPremium || 0), 0);
 
             // Use Math.abs(prevRevenue) in denominator for robust percentage calculation, similar to transactions page
             const revenueChange = prevRevenue === 0 ? (currentRevenue === 0 ? 0 : 100) : parseFloat((((currentRevenue - prevRevenue) / (Math.abs(prevRevenue) || 1)) * 100).toFixed(1));
             setRevenueStats({ current: currentRevenue, prev: prevRevenue, change: revenueChange });
+            setLoading(false);
             // The fetch for /api/payment and setRecentPayments is removed as recentQuotes will be used.
         }
         fetchStats();
     }, []);
+
+    // Skeleton Components
+    const StatCardSkeleton = () => (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-pulse">
+            <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-gray-200 rounded-lg h-10 w-10"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            </div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+            <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+        </div>
+    );
+
+    const RecentListItemSkeleton = () => (
+        <div className="py-3 animate-pulse">
+            <div className="flex items-center justify-between">
+                <div className="h-5 bg-gray-200 rounded w-3/5"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/5"></div>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+                 <div className="h-4 bg-gray-200 rounded w-2/5"></div>
+                 <div className="h-5 bg-gray-200 rounded w-1/4"></div>
+            </div>
+             <div className="h-3 bg-gray-200 rounded w-1/4 mt-1 ml-auto"></div>
+        </div>
+    );
+
+    const RecentListSkeleton = ({ itemCount = 3 }) => (
+        <div className="divide-y divide-gray-100">
+            {[...Array(itemCount)].map((_, i) => (
+                <RecentListItemSkeleton key={i} />
+            ))}
+        </div>
+    );
+
+    if (loading) {
+        return (
+            <div className="p-6 max-w-7xl mx-auto">
+                <div className="h-10 bg-gray-200 rounded w-1/3 mb-2 animate-pulse"></div>
+                <div className="h-6 bg-gray-200 rounded w-1/2 mb-8 animate-pulse"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {[...Array(3)].map((_, i) => <StatCardSkeleton key={i} />)}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card title="Recent Quotes" icon={<Clock size={20} />}><RecentListSkeleton /></Card>
+                    <Card title="Recent Transactions" icon={<DollarSign size={20} />}><RecentListSkeleton /></Card>
+                </div>
+            </div>
+        );
+    }
 
     function generateTransactionId(quoteNum: string | null | undefined): string {
         if (quoteNum && quoteNum.startsWith("Q")) {
@@ -197,7 +277,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-500 truncate" title={`${quote.policyHolder?.firstName || ""} ${quote.policyHolder?.lastName || ""}`.trim() || "Unknown Customer"}>
-                                        {`${quote.policyHolder?.firstName || ""} ${quote.policyHolder?.lastName || ""}`.trim() || "Unknown Customer"} ({quote.quoteNumber})
+                                        {`${quote.policyHolder?.firstName || ""} ${quote.policyHolder?.lastName || ""}`.trim() || "Unknown Customer"} 
                                     </span>
                                     <span className="font-medium text-gray-800">${(quote.totalPremium || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>

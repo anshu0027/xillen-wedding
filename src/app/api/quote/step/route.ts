@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, StepStatus, QuoteSource } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { PrismaClient, StepStatus, QuoteSource, Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // Types from QuoteContext - consider moving to a shared types file
 type GuestRange =
@@ -73,18 +72,8 @@ const calculateLiquorLiabilityPremium = (
   return premiumMap[guestRange as GuestRange] || 0;
 };
 
-// Helper function for new customer quote number format
-function generateCustomerQuoteNumber(): string {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, "0");
-  const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
-  const year = String(now.getFullYear());
-  const dateStr = `${day}${month}${year}`;
-  // Generate a 6-digit random number
-  const randomNumber = Math.floor(100000 + Math.random() * 900000);
-  return `QI-${dateStr}-${randomNumber}`;
-}
-function generateAdminQuoteNumber(): string {
+// Helper function for generating quote numbers
+function generateQuoteNumber(): string {
   const now = new Date();
   const day = String(now.getDate()).padStart(2, "0");
   const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
@@ -99,6 +88,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log("Incoming quote POST:", body);
+    // console.time("POST /api/quote/step");
     const {
       step, // Expected: "STEP1", "STEP2", "STEP3", "COMPLETE"
       quoteNumber: rawQuoteNumber,
@@ -292,12 +282,7 @@ export async function POST(req: NextRequest) {
     const maxAttempts = 5;
     let lastError;
     while (attempt < maxAttempts) {
-      if (isCustomerGenerated) {
-        newQuoteNumberToTry = generateCustomerQuoteNumber();
-      } else {
-        // Admin
-        newQuoteNumberToTry = generateAdminQuoteNumber();
-      }
+      newQuoteNumberToTry = generateQuoteNumber(); // Use the unified function
       try {
         savedQuote = await prisma.quote.create({
           data: {
@@ -306,18 +291,18 @@ export async function POST(req: NextRequest) {
             // Only create event/policyHolder if provided (step 1 may not have all fields)
             ...(fields.eventType && fields.eventDate && fields.maxGuests
               ? {
-                  event: {
-                    create: {
-                      ...eventFields,
-                      venue: { create: venueFields },
-                    },
+                event: {
+                  create: {
+                    ...eventFields,
+                    venue: { create: venueFields },
                   },
-                }
+                },
+              }
               : {}),
             ...(fields.firstName && fields.lastName && fields.phone
               ? {
-                  policyHolder: { create: policyHolderFields },
-                }
+                policyHolder: { create: policyHolderFields },
+              }
               : {}),
           },
           include: {
@@ -344,7 +329,7 @@ export async function POST(req: NextRequest) {
     }
     if (!savedQuote) {
       throw (
-        lastError || 
+        lastError ||
         new Error("Failed to create quote after multiple attempts.")
       );
     }
@@ -418,24 +403,50 @@ export async function PUT(req: NextRequest) {
     // --- USER HANDLING ---
     let userToConnectInfo = { id: existingQuote.userId }; // Default to existing user
 
+    // if (fields.email && fields.email !== existingQuote.user?.email) {
+    //   let userForUpdate = await prisma.user.findUnique({
+    //     where: { email: fields.email },
+    //   });
+    //   if (!userForUpdate) {
+    //     userForUpdate = await prisma.user.create({
+    //       data: {
+    //         email: fields.email,
+    //         firstName:
+    //           fields.firstName || existingQuote.policyHolder?.firstName || "",
+    //         lastName:
+    //           fields.lastName || existingQuote.policyHolder?.lastName || "",
+    //         phone: fields.phone || existingQuote.policyHolder?.phone || "",
+    //       },
+    //     });
+    //   }
+    //   userToConnectInfo = { id: userForUpdate.id };
+    // } 
+
     if (fields.email && fields.email !== existingQuote.user?.email) {
-      let userForUpdate = await prisma.user.findUnique({
+      const existingUserWithEmail = await prisma.user.findUnique({
         where: { email: fields.email },
       });
-      if (!userForUpdate) {
-        userForUpdate = await prisma.user.create({
+
+      if (existingUserWithEmail) {
+        // Optional: update user's name/phone only if you want to sync
+        await prisma.user.update({
+          where: { id: existingUserWithEmail.id },
           data: {
-            email: fields.email,
-            firstName:
-              fields.firstName || existingQuote.policyHolder?.firstName || "",
-            lastName:
-              fields.lastName || existingQuote.policyHolder?.lastName || "",
-            phone: fields.phone || existingQuote.policyHolder?.phone || "",
+            firstName: fields.firstName ?? undefined,
+            lastName: fields.lastName ?? undefined,
+            phone: fields.phone ?? undefined,
           },
         });
+
+        userToConnectInfo = { id: existingUserWithEmail.id };
+      } else {
+        // If no match, keep the existing user link
+        console.warn(`No user found with email ${fields.email}, keeping existing user.`);
       }
-      userToConnectInfo = { id: userForUpdate.id };
-    } else if (!existingQuote.userId) {
+    }
+
+
+    else if (!existingQuote.userId) {
       // This should not happen if user is always linked. Handle error if necessary.
       console.error(`Quote ${quoteNumber} is missing a user link.`);
       return NextResponse.json(
@@ -481,62 +492,65 @@ export async function PUT(req: NextRequest) {
       dataToUpdate.residentState = fields.residentState;
     if (fields.email !== undefined) dataToUpdate.email = fields.email;
 
-    // Prepare data for premium calculation
-    const coverageLevelForCalc =
-      fields.coverageLevel !== undefined
-        ? parseInt(fields.coverageLevel)
-        : existingQuote.coverageLevel;
-    const liabilityCoverageForCalc =
-      fields.liabilityCoverage !== undefined
-        ? String(fields.liabilityCoverage)
-        : String(existingQuote.liabilityCoverage);
-    const liquorLiabilityForCalc =
-      fields.liquorLiability !== undefined
-        ? fields.liquorLiability === "true" || fields.liquorLiability === true
-        : existingQuote.liquorLiability;
-    // Ensure maxGuests is a string and one of the GuestRange types for calculation
-    // It might come as a number from `fields` or `existingQuote.event.maxGuests`
-    let maxGuestsForCalc: GuestRange | undefined = undefined;
-    const maxGuestsValue =
-      fields.maxGuests !== undefined
-        ? parseInt(String(fields.maxGuests))
-        : existingQuote.event?.maxGuests;
+    // --- Conditional Premium Recalculation ---
+    const needsPremiumRecalculation =
+      fields.coverageLevel !== undefined ||
+      fields.liabilityCoverage !== undefined ||
+      fields.liquorLiability !== undefined ||
+      fields.maxGuests !== undefined;
 
-    if (maxGuestsValue !== undefined && maxGuestsValue !== null) {
-      if (maxGuestsValue <= 50) maxGuestsForCalc = "1-50";
-      else if (maxGuestsValue <= 100) maxGuestsForCalc = "51-100";
-      else if (maxGuestsValue <= 150) maxGuestsForCalc = "101-150";
-      else if (maxGuestsValue <= 200) maxGuestsForCalc = "151-200";
-      else if (maxGuestsValue <= 250) maxGuestsForCalc = "201-250";
-      else if (maxGuestsValue <= 300) maxGuestsForCalc = "251-300";
-      else if (maxGuestsValue <= 350) maxGuestsForCalc = "301-350";
-      else if (maxGuestsValue <= 400) maxGuestsForCalc = "351-400";
-      // else, it remains undefined if out of range, or you can handle error/default
+    if (needsPremiumRecalculation) {
+      const coverageLevelForCalc =
+        fields.coverageLevel !== undefined
+          ? parseInt(fields.coverageLevel)
+          : existingQuote.coverageLevel;
+      const liabilityCoverageForCalc =
+        fields.liabilityCoverage !== undefined
+          ? String(fields.liabilityCoverage)
+          : String(existingQuote.liabilityCoverage);
+      const liquorLiabilityForCalc =
+        fields.liquorLiability !== undefined
+          ? fields.liquorLiability === "true" || fields.liquorLiability === true
+          : existingQuote.liquorLiability;
+
+      let maxGuestsForCalc: GuestRange | undefined = undefined;
+      const maxGuestsValue =
+        fields.maxGuests !== undefined
+          ? parseInt(String(fields.maxGuests))
+          : existingQuote.event?.maxGuests;
+
+      if (maxGuestsValue !== undefined && maxGuestsValue !== null) {
+        if (maxGuestsValue <= 50) maxGuestsForCalc = "1-50";
+        else if (maxGuestsValue <= 100) maxGuestsForCalc = "51-100";
+        else if (maxGuestsValue <= 150) maxGuestsForCalc = "101-150";
+        else if (maxGuestsValue <= 200) maxGuestsForCalc = "151-200";
+        else if (maxGuestsValue <= 250) maxGuestsForCalc = "201-250";
+        else if (maxGuestsValue <= 300) maxGuestsForCalc = "251-300";
+        else if (maxGuestsValue <= 350) maxGuestsForCalc = "301-350";
+        else if (maxGuestsValue <= 400) maxGuestsForCalc = "351-400";
+      }
+
+      const newBasePremium = calculateBasePremium(
+        coverageLevelForCalc as CoverageLevel | null
+      );
+      const newLiabilityPremium = calculateLiabilityPremium(
+        liabilityCoverageForCalc as LiabilityOption | null
+      );
+      const newLiquorLiabilityPremium = calculateLiquorLiabilityPremium(
+        liquorLiabilityForCalc === null ? undefined : liquorLiabilityForCalc,
+        maxGuestsForCalc as GuestRange | null
+      );
+      const newTotalPremium =
+        newBasePremium + newLiabilityPremium + newLiquorLiabilityPremium;
+
+      dataToUpdate.coverageLevel = coverageLevelForCalc;
+      dataToUpdate.liabilityCoverage = parseLiabilityCoverage(liabilityCoverageForCalc);
+      dataToUpdate.liquorLiability = liquorLiabilityForCalc;
+      dataToUpdate.basePremium = newBasePremium;
+      dataToUpdate.liabilityPremium = newLiabilityPremium;
+      dataToUpdate.liquorLiabilityPremium = newLiquorLiabilityPremium;
+      dataToUpdate.totalPremium = newTotalPremium;
     }
-
-    // Recalculate premiums
-    const newBasePremium = calculateBasePremium(
-      coverageLevelForCalc as CoverageLevel | null
-    );
-    const newLiabilityPremium = calculateLiabilityPremium(
-      liabilityCoverageForCalc as LiabilityOption | null
-    );
-    const newLiquorLiabilityPremium = calculateLiquorLiabilityPremium(
-      liquorLiabilityForCalc,
-      maxGuestsForCalc as GuestRange | null
-    );
-    const newTotalPremium =
-      newBasePremium + newLiabilityPremium + newLiquorLiabilityPremium;
-
-    dataToUpdate.coverageLevel = coverageLevelForCalc;
-    dataToUpdate.liabilityCoverage = parseLiabilityCoverage(
-      liabilityCoverageForCalc
-    );
-    dataToUpdate.liquorLiability = liquorLiabilityForCalc;
-    dataToUpdate.basePremium = newBasePremium;
-    dataToUpdate.liabilityPremium = newLiabilityPremium;
-    dataToUpdate.liquorLiabilityPremium = newLiquorLiabilityPremium;
-    dataToUpdate.totalPremium = newTotalPremium;
 
     if (fields.covidDisclosure !== undefined)
       dataToUpdate.covidDisclosure =
@@ -652,8 +666,8 @@ export async function PUT(req: NextRequest) {
                   typeof fields.venueAsInsured === "boolean"
                     ? fields.venueAsInsured
                     : fields.venueAsInsured === "true" ||
-                      existingQuote.event?.venue?.venueAsInsured ||
-                      false,
+                    existingQuote.event?.venue?.venueAsInsured ||
+                    false,
               },
             },
           },
@@ -744,8 +758,8 @@ export async function PUT(req: NextRequest) {
                   typeof fields.legalNotices === "boolean"
                     ? fields.legalNotices
                     : fields.legalNotices === "true" ||
-                      existingQuote.policyHolder?.legalNotices ||
-                      false,
+                    existingQuote.policyHolder?.legalNotices ||
+                    false,
                 completingFormName:
                   fields.completingFormName ??
                   existingQuote.policyHolder?.completingFormName,
@@ -934,32 +948,46 @@ export async function DELETE(req: NextRequest) {
     if (!quote) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
-    // Delete payments
+
+    const deletionPromises = [];
+
+    // Stage 1: Delete dependents of related records
     if (quote.policy && quote.policy.payments.length > 0) {
-      await prisma.payment.deleteMany({ where: { policyId: quote.policy.id } });
+      deletionPromises.push(prisma.payment.deleteMany({ where: { policyId: quote.policy.id } }));
     }
-    // Delete policy
-    if (quote.policy) {
-      await prisma.policy.delete({ where: { id: quote.policy.id } });
-    }
-    // Delete venue
     if (quote.event && quote.event.venue) {
-      await prisma.venue.delete({ where: { id: quote.event.venue.id } });
+      deletionPromises.push(prisma.venue.delete({ where: { id: quote.event.venue.id } }));
     }
-    // Delete event
+
+    // Execute Stage 1 deletions in parallel
+    if (deletionPromises.length > 0) {
+      await Promise.all(deletionPromises);
+    }
+
+    // Stage 2: Delete direct related records of the quote
+    const directDependentDeletionPromises = [];
+    if (quote.policy) {
+      directDependentDeletionPromises.push(prisma.policy.delete({ where: { id: quote.policy.id } }));
+    }
     if (quote.event) {
-      await prisma.event.delete({ where: { id: quote.event.id } });
+      directDependentDeletionPromises.push(prisma.event.delete({ where: { id: quote.event.id } }));
     }
-    // Delete policyHolder
     if (quote.policyHolder) {
-      await prisma.policyHolder.delete({
+      directDependentDeletionPromises.push(prisma.policyHolder.delete({
         where: { id: quote.policyHolder.id },
-      });
+      }));
     }
+
+    // Execute Stage 2 deletions in parallel
+    if (directDependentDeletionPromises.length > 0) {
+      await Promise.all(directDependentDeletionPromises);
+    }
+
     // Finally, delete quote
     await prisma.quote.delete({ where: { quoteNumber } });
-    return NextResponse.json({ message: "Quote and related records deleted" });
-  } catch (error) {
+
+    return NextResponse.json({ message: "Quote and related records deleted successfully" });
+  } catch (error: any) {
     console.error("DELETE /api/quote/step error:", error);
     return NextResponse.json(
       {

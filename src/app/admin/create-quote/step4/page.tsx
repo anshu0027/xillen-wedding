@@ -13,6 +13,7 @@ export default function Step4() {
     const { state } = useQuote();
     const router = useRouter();
     const [emailSent, setEmailSent] = React.useState(false);
+    const [pageReady, setPageReady] = React.useState(false);
 
     useEffect(() => {
         // Replace with real admin auth check
@@ -20,10 +21,22 @@ export default function Step4() {
             // Use the same key as AdminLayout
             return typeof window !== 'undefined' && localStorage.getItem('admin_logged_in') === 'true';
         };
-        if (!isAdminAuthenticated()) {
-            router.replace('/admin/login');
-        }
-    }, [router]);
+
+        const timer = setTimeout(() => {
+            if (!isAdminAuthenticated()) {
+                router.replace('/admin/login');
+                return; // Stop further execution if not authenticated
+            }
+            // Example: Ensure step 3 is complete before showing step 4
+            if (!state.step3Complete) {
+                toast.error("Please complete Step 3: Policyholder Information first.");
+                router.replace('/admin/create-quote/step3');
+                return; // Stop further execution
+            }
+            setPageReady(true);
+        }, 200); // Short delay for skeleton visibility and to allow context to settle
+        return () => clearTimeout(timer);
+    }, [router, state.step3Complete]); // Dependencies: router for navigation, state.step3Complete to ensure prerequisite
 
     const handleBack = () => {
         router.push('/admin/create-quote/step3');
@@ -118,6 +131,52 @@ export default function Step4() {
             toast.error('Failed to send email.');
         }
     };
+
+    const Step4Skeleton = () => (
+        <div className="space-y-8 animate-pulse">
+            <div className="bg-gray-100 rounded-lg shadow-md p-6">
+                {/* Card Header Skeleton */}
+                <div className="mb-4">
+                    <div className="h-7 bg-gray-300 rounded w-3/5 mb-2"></div> {/* Title "Quote Summary" */}
+                    <div className="h-5 bg-gray-300 rounded w-2/5"></div>      {/* Subtitle "Quote #..." */}
+                </div>
+
+                {/* Card Body Skeleton */}
+                <div className="space-y-4">
+                    <div className="bg-gray-200 rounded-lg p-4">
+                        <div className="text-center">
+                            <div className="h-6 bg-gray-300 rounded w-1/3 mx-auto mb-2"></div> {/* Total Premium Label */}
+                            <div className="h-10 bg-gray-300 rounded w-1/2 mx-auto"></div>    {/* Total Premium Value */}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-300">
+                            <div className="h-5 bg-gray-300 rounded w-1/4 mb-3"></div> {/* Breakdown Title */}
+                            <div className="space-y-2">
+                                {[...Array(2)].map((_, i) => ( // Assuming 2-3 breakdown items usually
+                                    <div key={i} className="flex justify-between">
+                                        <div className="h-4 bg-gray-300 rounded w-2/5"></div>
+                                        <div className="h-4 bg-gray-300 rounded w-1/4"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Card Footer Skeleton */}
+                <div className="mt-6 flex justify-end gap-4">
+                    <div className="h-12 bg-gray-300 rounded-md w-36"></div> {/* Email Button */}
+                    <div className="h-12 bg-gray-300 rounded-md w-32"></div> {/* Save Button */}
+                </div>
+            </div>
+            <div className="flex justify-between">
+                <div className="h-10 bg-gray-200 rounded-md w-24"></div> {/* Back Button */}
+            </div>
+        </div>
+    );
+
+    if (!pageReady) {
+        return <Step4Skeleton />;
+    }
 
     return (
         <>

@@ -289,10 +289,10 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                         variant="primary"
                         size="lg"
                         onClick={handleCalculateQuote}
-                        icon={<DollarSign size={18} />}
-                        fullWidth
+                        // 
                         className="transition-transform duration-150"
                     >
+                        <DollarSign size={18} />
                         Calculate Quote
                     </Button>
                     {onSave && (
@@ -300,7 +300,6 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                             variant="outline"
                             size="lg"
                             onClick={onSave}
-                            fullWidth
                             className="transition-transform duration-150 hover:scale-105"
                         >
                             Save

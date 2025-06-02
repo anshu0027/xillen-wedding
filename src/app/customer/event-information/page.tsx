@@ -22,16 +22,82 @@ const QuotePreview = dynamic(() => import("@/components/ui/QuotePreview"), {
   ssr: false,
 });
 
+// Skeleton Loader Component
+const EventInformationSkeleton = () => (
+  <div className="w-full pb-12 animate-pulse">
+    {/* Honoree Information Skeleton */}
+    <div className="mb-10 shadow-2xl border-0 bg-slate-200/90 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+      <div className="flex items-center justify-center text-center mb-4 gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-9 h-9 bg-slate-300 rounded"></div>
+        </div>
+        <div>
+          <div className="h-6 bg-slate-300 rounded w-48 mb-2"></div>
+          <div className="h-4 bg-slate-300 rounded w-64"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        {[1, 2].map((i) => (
+          <div key={i}>
+            <div className={`h-5 bg-slate-300 rounded ${i === 1 ? 'w-32' : 'w-40'} mb-4 mx-auto`}></div>
+            <div className="mb-4">
+              <div className="h-4 bg-slate-300 rounded w-24 mb-2 mx-auto"></div>
+              <div className="h-10 bg-slate-300 rounded w-72 mx-auto"></div>
+            </div>
+            <div className="mb-4">
+              <div className="h-4 bg-slate-300 rounded w-24 mb-2 mx-auto"></div>
+              <div className="h-10 bg-slate-300 rounded w-72 mx-auto"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Venue Information Skeleton */}
+    <div className="mb-8 shadow-lg border-0 bg-slate-200/90 p-8 sm:p-10 md:p-12 rounded-2xl w-full">
+      <div className="flex items-center justify-center text-center mb-4 gap-4">
+        <div className="flex-shrink-0">
+          <div className="w-7 h-7 bg-slate-300 rounded"></div>
+        </div>
+        <div>
+          <div className="h-6 bg-slate-300 rounded w-56 mb-2"></div>
+          <div className="h-4 bg-slate-300 rounded w-72"></div>
+        </div>
+      </div>
+      <div className="space-y-8 w-full px-2 sm:px-4 md:px-8">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            <div className="h-10 bg-slate-300 rounded w-72 mx-auto"></div>
+            <div className="h-10 bg-slate-300 rounded w-72 mx-auto"></div>
+          </div>
+        ))}
+        <div className="h-6 bg-slate-300 rounded w-3/4 mx-auto mt-4"></div> {/* Checkbox placeholder */}
+      </div>
+    </div>
+
+    {/* Navigation Buttons Skeleton */}
+    <div className="flex flex-col sm:flex-row justify-between items-center mt-10 gap-4 w-full">
+      <div className="h-10 bg-slate-300 rounded w-full sm:w-32"></div>
+      <div className="h-10 bg-slate-300 rounded w-full sm:w-48"></div>
+    </div>
+  </div>
+);
+
 export default function EventInformation() {
   const router = useRouter();
   const { state, dispatch } = useQuote();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (!state.step1Complete) {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !state.step1Complete) {
       router.replace("/customer/quote-generator");
     }
-  }, [state.step1Complete, router]);
+  }, [state.step1Complete, router, isMounted]);
 
   const handleInputChange = (
     field: keyof QuoteState,
@@ -115,6 +181,18 @@ export default function EventInformation() {
   };
 
   const isCruiseShip = state.ceremonyLocationType === "cruise_ship";
+
+  if (!isMounted) {
+    return <EventInformationSkeleton />; // Show skeleton until component is mounted
+  }
+
+  if (!state.step1Complete) {
+    // After mount, if step1 is not complete, a redirect should be in progress from the useEffect.
+    // Continue showing skeleton (or a specific redirecting loader) to prevent form flash
+    // while navigation occurs.
+    return <EventInformationSkeleton />;
+  }
+
 
   return (
     <>

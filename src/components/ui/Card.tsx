@@ -3,8 +3,8 @@ import clsx from 'clsx';
 
 interface CardProps {
   children: React.ReactNode;
-  title?: string;
-  subtitle?: string;
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
   icon?: React.ReactNode;
   className?: string;
   footer?: React.ReactNode;

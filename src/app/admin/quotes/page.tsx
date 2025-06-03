@@ -167,53 +167,55 @@ export default function Quotes() {
     const handleEditQuote = (quoteNumber: string) => {
         router.push(`/admin/quotes/${quoteNumber}/edit`);
     };
-    const handleEmailQuote = async (quoteNumber: string) => {
-        try {
-            setIsSendingEmail(true);
-            // Fetch the full quote data
-            const res = await fetch(`/api/quote/step?quoteNumber=${quoteNumber}`);
-            if (!res.ok) {
-                throw new Error('Failed to fetch quote data');
-            }
-            const data = await res.json();
-            const quote = data.quote;
-            const recipientEmail = quote.email;
-            if (!recipientEmail) {
-                throw new Error('No email found for this quote');
-            }
-            const emailRes = await fetch('/api/quote/send-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: recipientEmail,
-                    type: 'quote',
-                    data: {
-                        quoteNumber: quote.quoteNumber,
-                        firstName: quote.firstName || 'Customer',
-                        totalPremium: quote.totalPremium
-                    }
-                })
-            });
-            if (!emailRes.ok) {
-                const errData = await emailRes.json();
-                throw new Error(errData.error || 'Failed to send email');
-            }
-            toast({
-                title: "Success",
-                description: "Quote emailed successfully!",
-                variant: "default"
-            });
-        } catch (error) {
-            console.error('Email error:', error);
-            toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : 'Failed to send email',
-                variant: "destructive"
-            });
-        } finally {
-            setIsSendingEmail(false);
-        }
-    };
+    // const handleEmailQuote = async (quoteNumber: string) => {
+    //     try {
+    //         setIsSendingEmail(true);
+    //         // Fetch the full quote data
+    //         const res = await fetch(`/api/quote/step?quoteNumber=${quoteNumber}`);
+    //         if (!res.ok) {
+    //             throw new Error('Failed to fetch quote data');
+    //         }
+    //         const data = await res.json();
+    //         const quote = data.quote;
+    //         const recipientEmail = quote.email;
+    //         if (!recipientEmail) {
+    //             throw new Error('No email found for this quote');
+    //         }
+    //         const emailRes = await fetch('/api/quote/send-email', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({
+    //                 to: recipientEmail,
+    //                 type: 'quote',
+    //                 data: {
+    //                     quoteNumber: quote.quoteNumber,
+    //                     firstName: quote.firstName || 'Customer',
+    //                     totalPremium: quote.totalPremium
+    //                 }
+    //             })
+    //         });
+    //         if (!emailRes.ok) {
+    //             const errData = await emailRes.json();
+    //             throw new Error(errData.error || 'Failed to send email');
+    //         }
+    //         toast({
+    //             title: "Success",
+    //             description: "Quote emailed successfully!",
+    //             variant: "default"
+    //         });
+    //     } catch (error) {
+    //         console.error('Email error:', error);
+    //         toast({
+    //             title: "Error",
+    //             description: error instanceof Error ? error.message : 'Failed to send email',
+    //             variant: "destructive"
+    //         });
+    //     } finally {
+    //         setIsSendingEmail(false);
+    //     }
+    // };
+    
+    
     const handleCreateNewQuote = () => {
         router.push("/admin/create-quote/step1");
     };
@@ -574,13 +576,13 @@ export default function Quotes() {
                                                     >
                                                         <Edit size={16} />
                                                     </Button>
-                                                    <Button
+                                                    {/* <Button
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => handleEmailQuote(quote.quoteNumber)}
                                                     >
                                                         <Mail size={16} />
-                                                    </Button>
+                                                    </Button> */}
                                                     {quote.status === 'COMPLETE' && (
                                                         <Button
                                                             variant="outline"

@@ -18,6 +18,8 @@ import {
   PROHIBITED_ACTIVITIES,
   LIQUOR_LIABILITY_PREMIUMS,
   LIQUOR_LIABILITY_PREMIUMS_NEW,
+  CORE_COVERAGE_PREMIUMS,
+  LIABILITY_COVERAGE_PREMIUMS,
 } from "@/utils/constants";
 import {
   isDateInFuture,
@@ -385,11 +387,23 @@ export default function QuoteGenerator() {
                 } text-center`}
               >
                 <option value="">Select coverage level</option>
-                {COVERAGE_LEVELS.map((level) => (
-                  <option key={level.value} value={level.value}>
-                    {level.label}
-                  </option>
-                ))}
+                {COVERAGE_LEVELS.map((level) => {
+                  let premiumText = "";
+                  if (
+                    level.value &&
+                    state.maxGuests &&
+                    CORE_COVERAGE_PREMIUMS[state.maxGuests] &&
+                    CORE_COVERAGE_PREMIUMS[state.maxGuests][level.value] !== undefined
+                  ) {
+                    const premium = CORE_COVERAGE_PREMIUMS[state.maxGuests][level.value];
+                    premiumText = ` (+$${premium})`;
+                  }
+                  return (
+                    <option key={level.value} value={level.value}>
+                      {level.label}{premiumText}
+                    </option>
+                  );
+                })}
               </select>
               <ChevronDown
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
@@ -418,15 +432,29 @@ export default function QuoteGenerator() {
                 } text-center`}
               >
                 <option value="">Select liability coverage</option>
-                {LIABILITY_OPTIONS.map((option) => (
-                  <option
-                    key={option.value}
-                    value={option.value}
-                    className={option.isNew ? "text-red-400" : ""}
-                  >
-                    {option.label}
-                  </option>
-                ))}
+                {LIABILITY_OPTIONS.map((option) => {
+                  let premiumText = "";
+                  if (
+                    option.value &&
+                    state.maxGuests &&
+                    LIABILITY_COVERAGE_PREMIUMS[state.maxGuests] &&
+                    LIABILITY_COVERAGE_PREMIUMS[state.maxGuests][option.value] !== undefined
+                  ) {
+                    const premium = LIABILITY_COVERAGE_PREMIUMS[state.maxGuests][option.value];
+                    if (option.value === "none" && premium === 0) {
+                        premiumText = ` (+$${premium})`;
+                    } else if (option.value !== "none" && premium >= 0) {
+                        premiumText = ` (+$${premium})`;
+                    }
+                  }
+                  return (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      className={option.isNew ? "text-red-400" : ""}
+                    >{option.label}{premiumText}</option>
+                  );
+                })}
               </select>
               <ChevronDown
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"

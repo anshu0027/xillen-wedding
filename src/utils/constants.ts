@@ -303,3 +303,41 @@ export const PROHIBITED_ACTIVITIES = [
   "Activities on water (e.g., boating)",
   "Circus acts",
 ];
+
+// Premiums for Core Coverage Levels, structured by guest range
+// The price for each coverage level is currently the same across all guest ranges,
+// as it's taken directly from the `price` field in `COVERAGE_LEVELS`.
+// Example: CORE_COVERAGE_PREMIUMS['1-50']['1'] would give the premium for Level 1 (value: "1") for 1-50 guests.
+export const CORE_COVERAGE_PREMIUMS: Record<string, Record<string, number>> =
+  GUEST_RANGES.reduce(
+    (acc, guestRange) => {
+      acc[guestRange.value] = COVERAGE_LEVELS.reduce(
+        (levelAcc, level) => {
+          levelAcc[level.value] = level.price; // Using the price from COVERAGE_LEVELS
+          return levelAcc;
+        },
+        {} as Record<string, number>
+      );
+      return acc;
+    },
+    {} as Record<string, Record<string, number>>
+  );
+
+// Premiums for Liability Coverage Options, structured by guest range
+// The price for each liability option is currently the same across all guest ranges,
+// as it's taken directly from the `price` field in `LIABILITY_OPTIONS`.
+// Example: LIABILITY_COVERAGE_PREMIUMS['1-50']['option1'] would give the premium for Option 1 for 1-50 guests.
+export const LIABILITY_COVERAGE_PREMIUMS: Record<string, Record<string, number>> =
+  GUEST_RANGES.reduce(
+    (acc, guestRange) => {
+      acc[guestRange.value] = LIABILITY_OPTIONS.reduce(
+        (optionAcc, option) => {
+          optionAcc[option.value] = option.price; // Using the price from LIABILITY_OPTIONS
+          return optionAcc;
+        },
+        {} as Record<string, number>
+      );
+      return acc;
+    },
+    {} as Record<string, Record<string, number>>
+  );

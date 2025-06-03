@@ -13,10 +13,34 @@ import {
     LIABILITY_OPTIONS,
     // PROHIBITED_ACTIVITIES,
     LIQUOR_LIABILITY_PREMIUMS,
-    LIQUOR_LIABILITY_PREMIUMS_NEW
+    LIQUOR_LIABILITY_PREMIUMS_NEW,
+    CORE_COVERAGE_PREMIUMS,
+    LIABILITY_COVERAGE_PREMIUMS,
 } from "@/utils/constants";
 
-export default function Step1Form({ state, errors, onChange, onValidate, onContinue, showQuoteResults, handleCalculateQuote, onSave, isCustomerEdit = false }) {
+type Step1FormProps = {
+    state: any;
+    errors: any;
+    onChange: (field: string, value: any) => void;
+    onValidate?: () => void;
+    onContinue?: () => void;
+    showQuoteResults?: boolean;
+    handleCalculateQuote: () => void;
+    onSave?: () => void;
+    isCustomerEdit?: boolean;
+};
+
+export default function Step1Form({
+    state,
+    errors,
+    onChange,
+    onValidate,
+    onContinue,
+    showQuoteResults,
+    handleCalculateQuote,
+    onSave,
+    isCustomerEdit = false,
+}: Step1FormProps) {
     const selectedDate = state.eventDate ? new Date(state.eventDate) : null;
     const minDate = new Date();
     minDate.setHours(minDate.getHours() + 48);
@@ -170,11 +194,23 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                             className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.coverageLevel ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
                         >
                             <option value="">Select coverage level</option>
-                            {COVERAGE_LEVELS.map(level => (
-                                <option key={level.value} value={level.value}>
-                                    {level.label}
-                                </option>
-                            ))}
+                            {COVERAGE_LEVELS.map((level) => {
+                                let premiumText = "";
+                                if (
+                                    level.value &&
+                                    state.maxGuests &&
+                                    CORE_COVERAGE_PREMIUMS[state.maxGuests] &&
+                                    CORE_COVERAGE_PREMIUMS[state.maxGuests][level.value] !== undefined
+                                ) {
+                                    const premium = CORE_COVERAGE_PREMIUMS[state.maxGuests][level.value];
+                                    premiumText = ` (+$${premium})`;
+                                }
+                                return (
+                                    <option key={level.value} value={level.value}>
+                                        {level.label}{premiumText}
+                                    </option>
+                                );
+                            })}
                         </select>
                         <ChevronDown
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
@@ -196,11 +232,28 @@ export default function Step1Form({ state, errors, onChange, onValidate, onConti
                             className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.liabilityCoverage ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
                         >
                             <option value="">Select liability coverage</option>
-                            {LIABILITY_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value} className={option.isNew ? "text-red-400" : ""}>
-                                    {option.label}
-                                </option>
-                            ))}
+                            {LIABILITY_OPTIONS.map((option) => {
+                                let premiumText = "";
+                                if (
+                                    option.value &&
+                                    state.maxGuests &&
+                                    LIABILITY_COVERAGE_PREMIUMS[state.maxGuests] &&
+                                    LIABILITY_COVERAGE_PREMIUMS[state.maxGuests][option.value] !== undefined
+                                ) {
+                                    const premium = LIABILITY_COVERAGE_PREMIUMS[state.maxGuests][option.value];
+                                    if (option.value === "none" && premium === 0) {
+                                        premiumText = ` (+$${premium})`;
+                                    } else if (option.value !== "none" && premium >= 0) {
+                                        premiumText = ` (+$${premium})`;
+                                    }
+                                }
+                                return (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                        className={option.isNew ? "text-red-400" : ""}>{option.label}{premiumText}</option>
+                                );
+                            })}
                         </select>
                         <ChevronDown
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; // Corrected import
 import { Search, Filter, Download, Eye, PlusCircle, Edit, Mail } from "lucide-react";
 import Card from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -56,6 +56,8 @@ export default function Policies() {
     const [statusFilter, setStatusFilter] = useState('');
     const [showExportDropdown, setShowExportDropdown] = useState(false);
     const exportDropdownRef = useRef<HTMLDivElement>(null);
+    const [emailSendingQuoteNumber, setEmailSendingQuoteNumber] = useState<string | null>(null);
+
 
     useEffect(() => {
         async function fetchPolicies() {
@@ -75,9 +77,9 @@ export default function Policies() {
                     eventDate: p.event?.eventDate || '',
                     event: p.event?.eventType || '',
                 }))
-                .filter((p: any) => p.policyId || p.convertedToPolicy)
-                .sort((a: PolicyList, b: PolicyList) => 
-                    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+                    .filter((p: any) => p.policyId || p.convertedToPolicy)
+                    .sort((a: PolicyList, b: PolicyList) =>
+                        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
                 setPolicies(mapped);
                 setTotalPolicies(mapped.length);
             } catch (err: unknown) {
@@ -192,61 +194,61 @@ export default function Policies() {
     };
 
     const handleExportPDF = () => {
-            if (filteredForExport.length === 0) {
-                alert("No data available to export.");
-                return;
+        if (filteredForExport.length === 0) {
+            alert("No data available to export.");
+            return;
+        }
+
+        const doc = new jsPDF();
+        const tableHeaders = ["Policy #", "Event Type", "Customer", "Event Date", "Premium", "Coverage", "Status"];
+
+        const allTableRows = filteredForExport.map(policy => [
+            String(policy.policyNumber || policy.policyId || 'N/A'),
+            String(policy.eventType || 'N/A'),
+            String(policy.customer || (policy.policyHolder?.firstName && policy.policyHolder?.lastName ? `${policy.policyHolder.firstName} ${policy.policyHolder.lastName}` : "N/A")),
+            String(policy.eventDate ? new Date(policy.eventDate).toLocaleDateString() : 'N/A'),
+            String(policy.totalPremium !== null && policy.totalPremium !== undefined ? `$${policy.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"),
+            String(policy.coverageLevel || 'N/A'),
+            String(policy.status || 'N/A')
+        ]);
+
+        const rowsPerPage = 25;
+        const numChunks = Math.ceil(allTableRows.length / rowsPerPage);
+        let currentPageNumForFooter = 0;
+
+        for (let i = 0; i < numChunks; i++) {
+            currentPageNumForFooter++;
+            const startRow = i * rowsPerPage;
+            const endRow = startRow + rowsPerPage;
+            const chunk = allTableRows.slice(startRow, endRow);
+
+            if (i > 0) { // Add a new page for chunks after the first one
+                doc.addPage();
             }
-    
-            const doc = new jsPDF();
-            const tableHeaders = ["Policy #", "Event Type", "Customer", "Event Date", "Premium", "Coverage", "Status"];
-            
-            const allTableRows = filteredForExport.map(policy => [
-                String(policy.policyNumber || policy.policyId || 'N/A'),
-                String(policy.eventType || 'N/A'),
-                String(policy.customer || (policy.policyHolder?.firstName && policy.policyHolder?.lastName ? `${policy.policyHolder.firstName} ${policy.policyHolder.lastName}` : "N/A")),
-                String(policy.eventDate ? new Date(policy.eventDate).toLocaleDateString() : 'N/A'),
-                String(policy.totalPremium !== null && policy.totalPremium !== undefined ? `$${policy.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"),
-                String(policy.coverageLevel || 'N/A'),
-                String(policy.status || 'N/A')
-            ]);
-            
-            const rowsPerPage = 25;
-            const numChunks = Math.ceil(allTableRows.length / rowsPerPage);
-            let currentPageNumForFooter = 0;
-    
-            for (let i = 0; i < numChunks; i++) {
-                currentPageNumForFooter++;
-                const startRow = i * rowsPerPage;
-                const endRow = startRow + rowsPerPage;
-                const chunk = allTableRows.slice(startRow, endRow);
-    
-                if (i > 0) { // Add a new page for chunks after the first one
-                    doc.addPage();
-                }
-    
-                autoTable(doc, {
-                    head: [tableHeaders], // Ensure headers are repeated on each page
-                    body: chunk,
-                    startY: 25, // Start table after the title
-                    didDrawPage: (data) => {
-                        // Page Header
-                        doc.setFontSize(18);
-                        doc.setTextColor(40);
-                        doc.text("Insurance Policies Report", doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-                        
-                        // Page Footer
-                        doc.setFontSize(10);
-                        doc.text(`Page ${currentPageNumForFooter} of ${numChunks}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
-                    },
-                    styles: { fontSize: 8, cellPadding: 2 },
-                    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, fontStyle: 'bold' },
-                    alternateRowStyles: { fillColor: [245, 245, 245] },
-                    margin: { top: 20 } // Margin for the table content itself
-                });
-            }
-    
-            doc.save(`policies_export_${exportType}.pdf`);
-        };
+
+            autoTable(doc, {
+                head: [tableHeaders], // Ensure headers are repeated on each page
+                body: chunk,
+                startY: 25, // Start table after the title
+                didDrawPage: (data) => {
+                    // Page Header
+                    doc.setFontSize(18);
+                    doc.setTextColor(40);
+                    doc.text("Insurance Policies Report", doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+
+                    // Page Footer
+                    doc.setFontSize(10);
+                    doc.text(`Page ${currentPageNumForFooter} of ${numChunks}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                },
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                margin: { top: 20 } // Margin for the table content itself
+            });
+        }
+
+        doc.save(`policies_export_${exportType}.pdf`);
+    };
 
     const handleDeletePolicy = async (policyId: number) => {
         if (!window.confirm('Are you sure you want to delete this policy?')) return;
@@ -276,6 +278,7 @@ export default function Policies() {
         router.push(`/admin/policies/${quoteNumber}/edit`);
     };
     const handleEmail = async (quoteNumber: string) => {
+        setEmailSendingQuoteNumber(quoteNumber); // Set loading state for this quote
         // Fetch the full policy data
         const res = await fetch(`/api/quote/step?quoteNumber=${quoteNumber}`);
         if (!res.ok) {
@@ -290,27 +293,30 @@ export default function Policies() {
             return;
         }
         try {
-            const emailRes = await fetch('/api/quote/send-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: emailAddress,
-                    type: 'policy',
-                    data: {
-                        quoteNumber: policy.quoteNumber,
-                        firstName: policy.firstName || 'Customer',
-                        totalPremium: policy.totalPremium
-                    }
-                })
+            const emailRes = await fetch("/api/quote/send-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                to: emailAddress,
+                type: "policy",
+                data: {
+                  quoteNumber: policy.quoteNumber,
+                  firstName: policy.firstName || "Customer",
+                  totalPremium: policy.totalPremium,
+                },
+              }),
             });
             if (!emailRes.ok) {
                 const errData = await emailRes.json();
                 alert('Failed to send email: ' + (errData.error || 'Unknown error'));
                 return;
             }
-            alert('Policy emailed successfully!');
+            // alert('Policy emailed successfully!');
         } catch (err) {
             alert('An error occurred while sending the email. Please try again.');
+        }
+        finally {
+            setEmailSendingQuoteNumber(null); // Clear loading state
         }
     };
 
@@ -503,9 +509,17 @@ export default function Policies() {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleEmail(policy.quoteNumber)}
+                                                // onClick={() => handleEmail(policy.quoteNumber)}
+                                                onClick={() => handleEmail(policy.quoteNumber)} // Pass quoteNumber
+                                                disabled={emailSendingQuoteNumber === policy.quoteNumber}
                                             >
-                                                <Mail className="h-4 w-4 mr-2" /> Email
+                                                {emailSendingQuoteNumber === policy.quoteNumber ? (
+                                                    <>
+                                                        Sending...
+                                                    </>
+                                                ) : (
+                                                    <><Mail className="h-4 w-4 mr-2" /> Email</>
+                                                )}
                                             </Button>
                                             <Button variant="destructive" size="sm" onClick={() => handleDeletePolicy(policy.policyId)}>
                                                 Delete

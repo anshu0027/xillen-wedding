@@ -192,219 +192,61 @@ export default function Policies() {
     };
 
     const handleExportPDF = () => {
-        if (filteredForExport.length === 0) {
-            alert("No data available to export.");
-            return;
-        }
-
-        const doc = new jsPDF(); // Create one jsPDF instance
-
-        // Helper to add text (adapted from SpecialEventInsurancePDF.tsx)
-        const addText = (text: string, x: number, y: number, options: any = {}) => {
-            doc.text(text, x, y, options);
-        };
-
-        // Helper to add a table (adapted from SpecialEventInsurancePDF.tsx)
-        const addTableLocal = ( // Renamed to avoid conflict if addTable is globally available via jsPDF extensions
-            startX: number,
-            startY: number,
-            headers: string[],
-            data: string[][],
-            columnWidths: number[],
-            rowHeight: number,
-            headerFillColor: [number, number, number] = [220, 220, 220],
-            // headerTextColor is not used in the original helper as it's hardcoded to black
-            bodyFillColor: [number, number, number] = [255, 255, 255]
-            // bodyTextColor is not used in the original helper as it's hardcoded to black
-        ) => {
-            let currentY = startY;
-            let initialStartX = startX;
-
-            doc.setFont("helvetica", "bold");
-            doc.setFillColor(...headerFillColor);
-            headers.forEach((header, colIndex) => {
-                const cellWidth = columnWidths[colIndex];
-                doc.rect(initialStartX, currentY, cellWidth, rowHeight, "F");
-                doc.setTextColor(0, 0, 0);
-                doc.text(
-                    header,
-                    initialStartX + 2,
-                    currentY + rowHeight / 2 + 3, // Original adjustment
-                    { align: "left", baseline: "middle" }
-                );
-                initialStartX += cellWidth;
-            });
-            doc.setFont("helvetica", "normal");
-            currentY += rowHeight;
-
-            data.forEach((row) => {
-                let currentX = startX;
-                row.forEach((cell, colIndex) => {
-                    const cellWidth = columnWidths[colIndex];
-                    doc.setFillColor(...bodyFillColor);
-                    doc.rect(currentX, currentY, cellWidth, rowHeight, "F");
-                    doc.setDrawColor(200, 200, 200);
-                    doc.rect(currentX, currentY, cellWidth, rowHeight, "S");
-                    doc.setTextColor(0, 0, 0);
-                    doc.text(
-                        cell,
-                        currentX + 2,
-                        currentY + rowHeight / 2 + 3, // Original adjustment
-                        { align: "left", baseline: "middle" }
-                    );
-                    currentX += cellWidth;
-                });
-                currentY += rowHeight;
-            });
-            return currentY;
-        };
-
-        filteredForExport.forEach((policy, policyIndex) => {
-            if (policyIndex > 0) {
-                doc.addPage();
+            if (filteredForExport.length === 0) {
+                alert("No data available to export.");
+                return;
             }
-
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            let yPos = 10; // Initial Y for each page
-
-            // --- Header Section ---
-            const logoWidth = 25;
-            const logoHeight = 25;
-            const logoX = 15;
-            const logoY = yPos;
-
-            doc.setDrawColor(0);
-            doc.setFillColor(230, 230, 230);
-            doc.rect(logoX, logoY, logoWidth, logoHeight, "F");
-            doc.setFontSize(8);
-            doc.setTextColor(50, 50, 50);
-            addText("LOGO", logoX + logoWidth / 2, logoY + logoHeight / 2, { align: "center", baseline: "middle" });
-            doc.setTextColor(0, 0, 0);
-
-            doc.setFontSize(22);
-            doc.setFont("helvetica", "bold");
-            addText("Special Event Insurance", pageWidth / 2, yPos + 10, { align: "center" });
-            doc.setFontSize(14);
-            addText("Declaration", pageWidth / 2, yPos + 20, { align: "center" });
-            doc.setFont("helvetica", "normal");
-            // --- End Header Section ---
-
-            yPos = 50; // Reset yPos for content after header
-
-            // --- Named Insured & Address / Agent Information boxes ---
-            const boxHeight = 35;
-            const boxMargin = 10;
-            const contentPadding = 2;
-            const availableWidthForBoxes = pageWidth - (boxMargin * 3);
-            const namedInsuredWidth = availableWidthForBoxes / 2;
-            const agentInfoWidth = availableWidthForBoxes / 2;
-
-            doc.setDrawColor(150, 150, 150);
-            doc.setLineWidth(0.3);
-
-            doc.rect(boxMargin, yPos, namedInsuredWidth, boxHeight);
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            addText("Named Insured & Address", boxMargin + contentPadding, yPos + 5);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            addText(policy.policyHolder?.firstName || "N/A", boxMargin + contentPadding, yPos + 15);
-            addText(policy.policyHolder?.lastName || "N/A", boxMargin + contentPadding, yPos + 20); // Example: if address lines are needed
-            addText(policy.policyHolder?.email || "N/A", boxMargin + contentPadding, yPos + 25);
-
-            const agentInfoX = boxMargin + namedInsuredWidth + boxMargin;
-            doc.rect(agentInfoX, yPos, agentInfoWidth, boxHeight);
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            addText("Agent Information", agentInfoX + contentPadding, yPos + 5);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            addText("Aura Risk Management", agentInfoX + contentPadding, yPos + 15); // Static Agent Info
-            addText("904 W. Chapman Ave.", agentInfoX + contentPadding, yPos + 20);
-            addText("Orange, CA 94025", agentInfoX + contentPadding, yPos + 25);
-            // --- End Named Insured & Address / Agent Information boxes ---
+    
+            const doc = new jsPDF();
+            const tableHeaders = ["Policy #", "Event Type", "Customer", "Event Date", "Premium", "Coverage", "Status"];
             
-            yPos += boxHeight + 15;
-
-            // --- POLICY INFORMATION Section ---
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            addText("POLICY INFORMATION", 15, yPos);
-            doc.setLineWidth(0.5);
-            doc.line(15, yPos + 1.5, pageWidth - 15, yPos + 1.5);
-
-            yPos += 8;
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            const policyInfoCol1X = 15;
-            const policyInfoCol2X = 90;
-
-            addText("Policy Number:", policyInfoCol1X, yPos);
-            doc.setFont("helvetica", "bold"); doc.setTextColor(0, 100, 0);
-            addText(String(policy.policyNumber || policy.quoteNumber || "N/A"), policyInfoCol1X + 30, yPos);
-            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
-
-            addText("Issue Date:", policyInfoCol2X, yPos);
-            addText(policy.createdAt ? new Date(policy.createdAt).toLocaleDateString() : "N/A", policyInfoCol2X + 25, yPos);
+            const allTableRows = filteredForExport.map(policy => [
+                String(policy.policyNumber || policy.policyId || 'N/A'),
+                String(policy.eventType || 'N/A'),
+                String(policy.customer || (policy.policyHolder?.firstName && policy.policyHolder?.lastName ? `${policy.policyHolder.firstName} ${policy.policyHolder.lastName}` : "N/A")),
+                String(policy.eventDate ? new Date(policy.eventDate).toLocaleDateString() : 'N/A'),
+                String(policy.totalPremium !== null && policy.totalPremium !== undefined ? `$${policy.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"),
+                String(policy.coverageLevel || 'N/A'),
+                String(policy.status || 'N/A')
+            ]);
             
-            yPos += 7;
-            addText("Event Date:", policyInfoCol1X, yPos);
-            addText(policy.event?.eventDate ? new Date(policy.event.eventDate).toLocaleDateString() : "N/A", policyInfoCol1X + 25, yPos);
-
-            addText("Insurance Company:", policyInfoCol2X, yPos); // Static
-            addText("Certain Underwriters At Lloyd's", policyInfoCol2X + 35, yPos);
-
-            yPos += 7;
-            addText("Customer Service: 1-888-888-0888", policyInfoCol1X, yPos); // Static
-            addText("Claims Service: 1-888-888-0889", policyInfoCol2X, yPos); // Static
-
-            yPos += 12;
-            doc.setFont("helvetica", "bold");
-            doc.setFillColor(220, 220, 220);
-            doc.rect(15, yPos - 4, pageWidth - 30, 8, "F");
-            doc.setFontSize(10); doc.setTextColor(0,0,0);
-            addText(`Total Policy Premium: $${policy.totalPremium?.toFixed(2) || "N/A"} (EXCLUDING ANY FEES OR TAXES)`, pageWidth / 2, yPos, { align: "center" });
-            doc.setFont("helvetica", "normal");
-            yPos += 10;
-            // --- End POLICY INFORMATION Section ---
-
-            // --- Placeholder for POLICY LIMITS, ENDORSEMENTS, COVERAGES Tables ---
-            // The following sections use static data from SpecialEventInsurancePDF.tsx
-            // as PolicyList does not contain this level of detail.
-            // These would need to be populated from policy-specific data if available.
-            doc.setFontSize(9);
-            addText("NOTE: Detailed coverage tables (Policy Limits, Endorsements, Coverages) below use", 15, yPos);
-            yPos += 5;
-            addText("placeholder data. For actual policy details, refer to individual policy documents.", 15, yPos);
-            yPos += 10;
-
-            // Example: Static Policy Limits Table (copied structure)
-            const policyLimitsHeaders = ["EVENT CANCELLATION COVERAGE", "LIMITS OF LIABILITY", "PREMIUM"];
-            const policyLimitsData = [ /* Static data from SpecialEventInsurancePDF.tsx */
-                ["Cancellation/postponement", "$25,000", "$100"], ["Additional Expense", "$2,000", "$50"],
-                ["Event Photography/Video", "$5,000", "$50"], ["Event Gifts", "$5,000", "$100"],
-                ["Special Attire", "$10,000", "$50"], ["Special Jewelry", "$25,000", "$150"],
-                ["Lost Deposit", "$5,000", "$100"],
-            ];
-            const tableStartX = 15;
-            const tableWidth = pageWidth - 30;
-            const policyLimitsColWidths = [tableWidth * 0.5, tableWidth * 0.25, tableWidth * 0.25];
-            yPos = addTableLocal(tableStartX, yPos, policyLimitsHeaders, policyLimitsData, policyLimitsColWidths, 8);
-            // ... (Add similar static tables for Endorsements and Coverages if desired) ...
-            // --- End Placeholder Tables ---
-
-            // --- Footer Section for each page ---
-            const footerY = pageHeight - 15;
-            doc.setFontSize(8);
-            doc.setTextColor(100, 100, 100);
-            addText("AU-DEC (08-24) - Admin Report", 15, footerY); // Modified static text
-            addText(`Page ${policyIndex + 1} of ${filteredForExport.length}`, pageWidth - 15, footerY, { align: "right" });
-            // --- End Footer Section ---
-        });
-
-        doc.save(`policy_declarations_export_${exportType}.pdf`);
-    };
+            const rowsPerPage = 25;
+            const numChunks = Math.ceil(allTableRows.length / rowsPerPage);
+            let currentPageNumForFooter = 0;
+    
+            for (let i = 0; i < numChunks; i++) {
+                currentPageNumForFooter++;
+                const startRow = i * rowsPerPage;
+                const endRow = startRow + rowsPerPage;
+                const chunk = allTableRows.slice(startRow, endRow);
+    
+                if (i > 0) { // Add a new page for chunks after the first one
+                    doc.addPage();
+                }
+    
+                autoTable(doc, {
+                    head: [tableHeaders], // Ensure headers are repeated on each page
+                    body: chunk,
+                    startY: 25, // Start table after the title
+                    didDrawPage: (data) => {
+                        // Page Header
+                        doc.setFontSize(18);
+                        doc.setTextColor(40);
+                        doc.text("Insurance Policies Report", doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+                        
+                        // Page Footer
+                        doc.setFontSize(10);
+                        doc.text(`Page ${currentPageNumForFooter} of ${numChunks}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                    },
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [245, 245, 245] },
+                    margin: { top: 20 } // Margin for the table content itself
+                });
+            }
+    
+            doc.save(`policies_export_${exportType}.pdf`);
+        };
 
     const handleDeletePolicy = async (policyId: number) => {
         if (!window.confirm('Are you sure you want to delete this policy?')) return;

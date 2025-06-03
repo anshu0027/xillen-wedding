@@ -5,7 +5,7 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
   label: React.ReactNode;
   checked: boolean;
   onChange: (checked: boolean) => void;
-  description?: string;
+  description?: React.ReactNode;
   error?: boolean;
 }
 

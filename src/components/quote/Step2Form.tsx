@@ -8,8 +8,45 @@ import Select from "@/components/ui/Select";
 import Checkbox from "@/components/ui/Checkbox";
 import { VENUE_TYPES, INDOOR_OUTDOOR_OPTIONS, COUNTRIES, US_STATES } from "@/utils/constants";
 
-export default function Step2Form({ state, errors, onChange, onValidate, onContinue, onSave }) {
+interface Step2FormState {
+    ceremonyVenueType: string;
+    brunchVenueType: string;
+    honoree1FirstName: string;
+    honoree1LastName: string;
+    honoree2FirstName?: string;
+    honoree2LastName?: string;
+    ceremonyLocationType: string;
+    indoorOutdoor: string;
+    venueName: string;
+    venueAddress1: string;
+    venueAddress2?: string;
+    venueCountry?: string;
+    venueCity: string;
+    venueState?: string;
+    venueZip?: string;
+    venueAsInsured: boolean;
+    rehearsalVenueType?: string;
+    // Add any other fields as needed
+}
+
+interface Step2FormErrors {
+    [key: string]: string | undefined;
+}
+
+interface Step2FormProps {
+    state: Step2FormState;
+    errors: Step2FormErrors;
+    onChange: (field: string, value: any) => void;
+    onValidate?: () => void;
+    onContinue?: () => void;
+    onSave?: () => void;
+}
+
+export default function Step2Form({ state, errors, onChange, onValidate, onContinue, onSave }: Step2FormProps) {
     const isCruiseShip = state.ceremonyLocationType === 'cruise_ship';
+    const isRehearsalCruiseShip = state.rehearsalVenueType === "cruise_ship";
+    const isCeremonyCruiseShip = state.ceremonyVenueType === "cruise_ship";
+    const isBrunchCruiseShip = state.brunchVenueType === "cruise_ship";
     return (
         <>
             {/* Honoree Information Section */}
@@ -262,95 +299,95 @@ export default function Step2Form({ state, errors, onChange, onValidate, onConti
                     {/* Country, City, State are only relevant if not a cruise ship */}
                     {!isCruiseShip && (
                         <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                            <FormField
-                                label={<span className="font-medium text-gray-800">Country</span>}
-                                htmlFor="venueCountry"
-                                required
-                                className="mb-4"
-                            >
-                                <div className="relative w-72">
-                                    <select
-                                        id="venueCountry"
-                                        value={state.venueCountry}
-                                        onChange={e => onChange('venueCountry', e.target.value)}
-                                        className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.venueCountry ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
-                                    >
-                                        <option value="">Select country</option>
-                                        {COUNTRIES.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-                                        size={16} />
-                                </div>
-                            </FormField>
-                            <FormField
-                                label={<span className="font-medium text-gray-800">City</span>}
-                                htmlFor="venueCity"
-                                required
-                                error={errors.venueCity}
-                                className="mb-4"
-                            >
-                                <div className="w-72">
-                                    <Input
-                                        id="venueCity"
-                                        value={state.venueCity}
-                                        onChange={e => onChange('venueCity', e.target.value)}
-                                        error={!!errors.venueCity}
-                                        className="text-center"
-                                    />
-                                </div>
-                            </FormField>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                            <FormField
-                                label={<span className="font-medium text-gray-800">State</span>}
-                                htmlFor="venueState"
-                                required
-                                error={errors.venueState}
-                                className="mb-4"
-                            >
-                                <div className="relative w-72">
-                                    <select
-                                        id="venueState"
-                                        value={state.venueState}
-                                        onChange={e => onChange('venueState', e.target.value)}
-                                        className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.venueState ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
-                                    >
-                                        <option value="">Select state</option>
-                                        {US_STATES.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-                                        size={16} />
-                                </div>
-                            </FormField>
-                            <FormField
-                                label={<span className="font-medium text-gray-800">ZIP Code</span>}
-                                htmlFor="venueZip"
-                                required
-                                error={errors.venueZip}
-                                className="mb-4"
-                            >
-                                <div className="w-72">
-                                    <Input
-                                        id="venueZip"
-                                        value={state.venueZip}
-                                        onChange={e => onChange('venueZip', e.target.value)}
-                                        error={!!errors.venueZip}
-                                        className="text-center"
-                                    />
-                                </div>
-                            </FormField>
-                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                                <FormField
+                                    label={<span className="font-medium text-gray-800">Country</span>}
+                                    htmlFor="venueCountry"
+                                    required
+                                    className="mb-4"
+                                >
+                                    <div className="relative w-72">
+                                        <select
+                                            id="venueCountry"
+                                            value={state.venueCountry}
+                                            onChange={e => onChange('venueCountry', e.target.value)}
+                                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.venueCountry ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                                        >
+                                            <option value="">Select country</option>
+                                            {COUNTRIES.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                                            size={16} />
+                                    </div>
+                                </FormField>
+                                <FormField
+                                    label={<span className="font-medium text-gray-800">City</span>}
+                                    htmlFor="venueCity"
+                                    required
+                                    error={errors.venueCity}
+                                    className="mb-4"
+                                >
+                                    <div className="w-72">
+                                        <Input
+                                            id="venueCity"
+                                            value={state.venueCity}
+                                            onChange={e => onChange('venueCity', e.target.value)}
+                                            error={!!errors.venueCity}
+                                            className="text-center"
+                                        />
+                                    </div>
+                                </FormField>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                                <FormField
+                                    label={<span className="font-medium text-gray-800">State</span>}
+                                    htmlFor="venueState"
+                                    required
+                                    error={errors.venueState}
+                                    className="mb-4"
+                                >
+                                    <div className="relative w-72">
+                                        <select
+                                            id="venueState"
+                                            value={state.venueState}
+                                            onChange={e => onChange('venueState', e.target.value)}
+                                            className={`block w-full rounded-md shadow-sm pl-3 pr-10 py-2 text-base border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.venueState ? 'border-red-500 text-red-900' : 'border-gray-300 text-gray-900'} text-center`}
+                                        >
+                                            <option value="">Select state</option>
+                                            {US_STATES.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                                            size={16} />
+                                    </div>
+                                </FormField>
+                                <FormField
+                                    label={<span className="font-medium text-gray-800">ZIP Code</span>}
+                                    htmlFor="venueZip"
+                                    required
+                                    error={errors.venueZip}
+                                    className="mb-4"
+                                >
+                                    <div className="w-72">
+                                        <Input
+                                            id="venueZip"
+                                            value={state.venueZip}
+                                            onChange={e => onChange('venueZip', e.target.value)}
+                                            error={!!errors.venueZip}
+                                            className="text-center"
+                                        />
+                                    </div>
+                                </FormField>
+                            </div>
                         </>
                     )}
                     <FormField
@@ -368,8 +405,10 @@ export default function Step2Form({ state, errors, onChange, onValidate, onConti
                     </FormField>
                 </div>
             </div>
+
             
-            
+
+
             <div className="flex flex-col md:flex-row justify-end mt-8 gap-4 w-full">
                 {onSave && (
                     <Button

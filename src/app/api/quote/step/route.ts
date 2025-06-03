@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
     };
 
     const venueFields = {
+      // Reception Venue (Primary venue)
       name: fields.venueName,
       address1: fields.venueAddress1,
       address2: fields.venueAddress2,
@@ -239,9 +240,45 @@ export async function POST(req: NextRequest) {
       city: fields.venueCity,
       state: fields.venueState,
       zip: fields.venueZip,
-      ceremonyLocationType: fields.ceremonyLocationType,
+      locationType: fields.ceremonyLocationType,
       indoorOutdoor: fields.indoorOutdoor,
       venueAsInsured: fields.venueAsInsured,
+
+      // Ceremony Venue
+      ceremonyVenueName: fields.ceremonyVenueName,
+      ceremonyVenueAddress1: fields.ceremonyVenueAddress1,
+      ceremonyVenueAddress2: fields.ceremonyVenueAddress2,
+      ceremonyVenueCountry: fields.ceremonyVenueCountry,
+      ceremonyVenueCity: fields.ceremonyVenueCity,
+      ceremonyVenueState: fields.ceremonyVenueState,
+      ceremonyVenueZip: fields.ceremonyVenueZip,
+      ceremonyVenueType: fields.ceremonyVenueType,
+      ceremonyVenueIndoorOutdoor: fields.ceremonyVenueIndoorOutdoor,
+      ceremonyVenueAsInsured: fields.ceremonyVenueAsInsured,
+
+      // Rehearsal Dinner Venue
+      rehearsalVenueName: fields.rehearsalVenueName,
+      rehearsalVenueAddress1: fields.rehearsalVenueAddress1,
+      rehearsalVenueAddress2: fields.rehearsalVenueAddress2,
+      rehearsalVenueCountry: fields.rehearsalVenueCountry,
+      rehearsalVenueCity: fields.rehearsalVenueCity,
+      rehearsalVenueState: fields.rehearsalVenueState,
+      rehearsalVenueZip: fields.rehearsalVenueZip,
+      rehearsalVenueType: fields.rehearsalVenueType,
+      rehearsalVenueIndoorOutdoor: fields.rehearsalVenueIndoorOutdoor,
+      rehearsalVenueAsInsured: fields.rehearsalVenueAsInsured,
+
+      // Brunch Venue
+      brunchVenueName: fields.brunchVenueName,
+      brunchVenueAddress1: fields.brunchVenueAddress1,
+      brunchVenueAddress2: fields.brunchVenueAddress2,
+      brunchVenueCountry: fields.brunchVenueCountry,
+      brunchVenueCity: fields.brunchVenueCity,
+      brunchVenueState: fields.brunchVenueState,
+      brunchVenueZip: fields.brunchVenueZip,
+      brunchVenueType: fields.brunchVenueType,
+      brunchVenueIndoorOutdoor: fields.brunchVenueIndoorOutdoor,
+      brunchVenueAsInsured: fields.brunchVenueAsInsured,
     };
 
     const policyHolderFields = {
@@ -716,6 +753,71 @@ export async function PUT(req: NextRequest) {
           : fields.legalNotices === "true";
     if (fields.completingFormName !== undefined)
       policyHolderDataForUpdate.completingFormName = fields.completingFormName;
+
+    // Update venue if it exists
+    if (existingQuote.event?.venue) {
+      const venueUpdateData = {
+        // Reception Venue (Primary venue)
+        name: fields.venueName,
+        address1: fields.venueAddress1,
+        address2: fields.venueAddress2,
+        country: fields.venueCountry,
+        city: fields.venueCity,
+        state: fields.venueState,
+        zip: fields.venueZip,
+        locationType: fields.ceremonyLocationType,
+        indoorOutdoor: fields.indoorOutdoor,
+        venueAsInsured: fields.venueAsInsured,
+
+        // Ceremony Venue
+        ceremonyVenueName: fields.ceremonyVenueName,
+        ceremonyVenueAddress1: fields.ceremonyVenueAddress1,
+        ceremonyVenueAddress2: fields.ceremonyVenueAddress2,
+        ceremonyVenueCountry: fields.ceremonyVenueCountry,
+        ceremonyVenueCity: fields.ceremonyVenueCity,
+        ceremonyVenueState: fields.ceremonyVenueState,
+        ceremonyVenueZip: fields.ceremonyVenueZip,
+        ceremonyVenueType: fields.ceremonyVenueType,
+        ceremonyVenueIndoorOutdoor: fields.ceremonyVenueIndoorOutdoor,
+        ceremonyVenueAsInsured: fields.ceremonyVenueAsInsured,
+
+        // Rehearsal Dinner Venue
+        rehearsalVenueName: fields.rehearsalVenueName,
+        rehearsalVenueAddress1: fields.rehearsalVenueAddress1,
+        rehearsalVenueAddress2: fields.rehearsalVenueAddress2,
+        rehearsalVenueCountry: fields.rehearsalVenueCountry,
+        rehearsalVenueCity: fields.rehearsalVenueCity,
+        rehearsalVenueState: fields.rehearsalVenueState,
+        rehearsalVenueZip: fields.rehearsalVenueZip,
+        rehearsalVenueType: fields.rehearsalVenueType,
+        rehearsalVenueIndoorOutdoor: fields.rehearsalVenueIndoorOutdoor,
+        rehearsalVenueAsInsured: fields.rehearsalVenueAsInsured,
+
+        // Brunch Venue
+        brunchVenueName: fields.brunchVenueName,
+        brunchVenueAddress1: fields.brunchVenueAddress1,
+        brunchVenueAddress2: fields.brunchVenueAddress2,
+        brunchVenueCountry: fields.brunchVenueCountry,
+        brunchVenueCity: fields.brunchVenueCity,
+        brunchVenueState: fields.brunchVenueState,
+        brunchVenueZip: fields.brunchVenueZip,
+        brunchVenueType: fields.brunchVenueType,
+        brunchVenueIndoorOutdoor: fields.brunchVenueIndoorOutdoor,
+        brunchVenueAsInsured: fields.brunchVenueAsInsured,
+      };
+
+      // Remove undefined fields to prevent overwriting with null
+      Object.keys(venueUpdateData).forEach((key) => {
+        if (venueUpdateData[key] === undefined) {
+          delete venueUpdateData[key];
+        }
+      });
+
+      await prisma.venue.update({
+        where: { id: existingQuote.event.venue.id },
+        data: venueUpdateData,
+      });
+    }
 
     // --- QUOTE UPDATE LOGIC ---
     const updatedQuote = await prisma.quote.update({

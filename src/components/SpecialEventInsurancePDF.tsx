@@ -1,407 +1,495 @@
-// d:\xillentech\xillentech\wedding\wedding\src\components\SpecialEventInsurancePDF.tsx
-'use client'; // Add this if you intend to use it directly in Next.js App Router and it uses client-side hooks
+// ---------------------PAGE 1-------------------------------
+"use client"
 
-import React, { useState } from "react";
-import { jsPDF } from "jspdf"; // Directly import jsPDF
+export async function generateInsuranceDeclarationPDF() {
+  const jsPDF = (await import("jspdf")).default
 
-const SpecialEventInsurancePDF = () => {
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  try {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
 
-  const generateSpecialEventInsurancePdf = async () => {
-    setIsGeneratingPdf(true);
+    // Logo circle (simplified as text)
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(2)
+    doc.circle(30, 25, 12)
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text("W&F", 30, 22, { align: "center" })
+    doc.text("ROYCE", 30, 28, { align: "center" })
 
-    try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      let yPos = 0; // Starting Y position
+    // Main Title
+    doc.setFontSize(18)
+    doc.setFont(undefined, "bold")
+    doc.text("Special Event Insurance", pageWidth / 2, 20, { align: "center" })
+    doc.text("Declaration", pageWidth / 2, 30, { align: "center" })
 
-      // Helper to add text with specified styles
-      const addText = (text: string, x: number, y: number, options: any = {}) => {
-        doc.text(text, x, y, options);
-      };
+    // Named Insured & Agent Information boxes
+    let yPos = 50
 
-      // Helper to add a table
-      const addTable = (
-        startX: number,
-        startY: number,
-        headers: string[],
-        data: string[][],
-        columnWidths: number[],
-        rowHeight: number,
-        headerFillColor: [number, number, number] = [220, 220, 220],
-        headerTextColor: [number, number, number] = [0, 0, 0], // Kept for consistency, but text color is set to black below
-        bodyFillColor: [number, number, number] = [255, 255, 255],
-        bodyTextColor: [number, number, number] = [0, 0, 0] // Kept for consistency, but text color is set to black below
-      ) => {
-        let currentY = startY;
-        let initialStartX = startX; // Store the initial starting X
+    // Named Insured box
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(1)
+    doc.rect(15, yPos, 85, 25)
+    doc.setFontSize(10)
+    doc.setFont(undefined, "bold")
+    doc.text("Named Insured & Address", 17, yPos + 5)
 
-        // Draw header row
-        doc.setFont("helvetica", "bold");
-        doc.setFillColor(...headerFillColor);
-        // doc.setTextColor(...headerTextColor); // Text color is explicitly set to black
-        headers.forEach((header, colIndex) => {
-          const cellWidth = columnWidths[colIndex];
-          doc.rect(initialStartX, currentY, cellWidth, rowHeight, "F");
-          doc.setTextColor(0, 0, 0); // Always black for text on header
-          doc.text(
-            header,
-            initialStartX + 2,
-            currentY + rowHeight / 2 + 3, // Adjusted for better vertical alignment
-            { align: "left", baseline: "middle" }
-          );
-          initialStartX += cellWidth;
-        });
-        doc.setFont("helvetica", "normal");
-        currentY += rowHeight;
+    // Yellow highlight for insured info
+    doc.setFillColor(255, 255, 0)
+    doc.rect(17, yPos + 7, 81, 15, "F")
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("Urvish Patel", 19, yPos + 12)
+    doc.setFont(undefined, "normal")
+    doc.text("11889 Main St.,", 19, yPos + 16)
+    doc.text("Tampa, FL 33602", 19, yPos + 20)
 
-        // Draw data rows
-        data.forEach((row) => {
-          let currentX = startX; // Reset X for each row to the original startX
-          // doc.setFillColor(...bodyFillColor); // Set fill color for the row
-          // doc.setTextColor(...bodyTextColor); // Set text color for the row (explicitly black below)
-          row.forEach((cell, colIndex) => {
-            const cellWidth = columnWidths[colIndex];
-            doc.setFillColor(...bodyFillColor); // Fill for each cell
-            doc.rect(currentX, currentY, cellWidth, rowHeight, "F");
-            doc.setDrawColor(200, 200, 200); // Border color
-            doc.rect(currentX, currentY, cellWidth, rowHeight, "S"); // Draw border
-            doc.setTextColor(0, 0, 0); // Always black for text on body
-            doc.text(
-              cell,
-              currentX + 2,
-              currentY + rowHeight / 2 + 3, // Adjusted for better vertical alignment
-              { align: "left", baseline: "middle" }
-            );
-            currentX += cellWidth;
-          });
-          currentY += rowHeight;
-        });
-        return currentY; // Return the Y position after the table
-      };
+    // Agent Information box
+    doc.setDrawColor(0, 0, 0)
+    doc.rect(105, yPos, 85, 25)
+    doc.setFont(undefined, "bold")
+    doc.text("Agent Information", 107, yPos + 5)
 
-      // --- Header Section ---
-      yPos = 10;
-      const logoWidth = 25;
-      const logoHeight = 25;
-      const logoX = 15;
-      const logoY = yPos;
+    // Yellow highlight for agent info
+    doc.setFillColor(255, 255, 0)
+    doc.rect(107, yPos + 7, 81, 15, "F")
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("Aura Risk Management", 109, yPos + 12)
+    doc.setFont(undefined, "normal")
+    doc.text("904 W. Chapman Ave.", 109, yPos + 16)
+    doc.text("Orange, CA 94025", 109, yPos + 20)
 
-      doc.setDrawColor(0);
-      doc.setFillColor(230, 230, 230); // Light grey for logo placeholder
-      doc.rect(logoX, logoY, logoWidth, logoHeight, "F");
-      doc.setFontSize(8);
-      doc.setTextColor(50,50,50);
-      addText("LOGO", logoX + logoWidth / 2, logoY + logoHeight / 2, { align: "center", baseline: "middle" });
-      doc.setTextColor(0,0,0);
+    yPos += 35
 
-      // --- End Header Section ---
+    // Policy Information Header
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFont(undefined, "bold")
+    doc.text("POLICY INFORMATION", 17, yPos + 5)
 
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      addText("Special Event Insurance", pageWidth / 2, yPos + 10, {
-        align: "center",
-      });
-      doc.setFontSize(14);
-      addText("Declaration", pageWidth / 2, yPos + 20, { align: "center" });
-      doc.setFont("helvetica", "normal");
+    yPos += 8
 
-      yPos = 50;
+    // Policy Information Content
+    doc.setDrawColor(47, 79, 79)
+    doc.setLineWidth(1)
+    doc.rect(15, yPos, pageWidth - 30, 35)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("Policy Number:", 17, yPos + 8)
 
-      const boxHeight = 35;
-      const boxMargin = 10;
-      const contentPadding = 2;
-      const availableWidthForBoxes = pageWidth - (boxMargin * 3);
-      const namedInsuredWidth = availableWidthForBoxes / 2;
-      const agentInfoWidth = availableWidthForBoxes / 2;
+    // Yellow highlight for policy number
+    doc.setFillColor(255, 255, 0)
+    doc.rect(55, yPos + 5, 35, 5, "F")
+    doc.setTextColor(0, 0, 0)
+    doc.text("WCP018024-00", 57, yPos + 8)
 
+    doc.setTextColor(0, 0, 0)
+    doc.text("Policy Period:", 120, yPos + 5)
+    doc.text("Issue Date:", 120, yPos + 12)
 
-      doc.setDrawColor(150, 150, 150); // Grey border
-      doc.setLineWidth(0.3);
+    // Yellow highlights for dates
+    doc.setFillColor(255, 255, 0)
+    doc.rect(145, yPos + 9, 25, 5, "F")
+    doc.text("08/13/2024", 147, yPos + 12)
 
-      doc.rect(boxMargin, yPos, namedInsuredWidth, boxHeight);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      addText("Named Insured & Address", boxMargin + contentPadding, yPos + 5);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      addText("Urvish Patel", boxMargin + contentPadding, yPos + 15);
-      addText("11889 Main St.,", boxMargin + contentPadding, yPos + 20);
-      addText("Tampa, FL 33602", boxMargin + contentPadding, yPos + 25);
+    doc.setTextColor(0, 0, 0)
+    doc.text("Event Date:", 175, yPos + 12)
+    doc.setFillColor(255, 255, 0)
+    doc.rect(195, yPos + 9, 20, 5, "F")
+    doc.text("11/0/2024", 197, yPos + 12)
 
-      const agentInfoX = boxMargin + namedInsuredWidth + boxMargin;
-      doc.rect(
-        agentInfoX,
-        yPos,
-        agentInfoWidth,
-        boxHeight
-      );
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      addText(
-        "Agent Information",
-        agentInfoX + contentPadding,
-        yPos + 5
-      );
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      addText(
-        "Aura Risk Management",
-        agentInfoX + contentPadding,
-        yPos + 15
-      );
-      addText(
-        "904 W. Chapman Ave.",
-        agentInfoX + contentPadding,
-        yPos + 20
-      );
-      addText(
-        "Orange, CA 94025",
-        agentInfoX + contentPadding,
-        yPos + 25
-      );
+    doc.setTextColor(0, 0, 0)
+    doc.text("Insurance Company:", 17, yPos + 18)
+    doc.setFont(undefined, "normal")
+    doc.text("Certain Underwriters At Lloyd's", 17, yPos + 22)
 
-      // --- End Named Insured & Address / Agent Information boxes ---
-      yPos += boxHeight + 15;
+    doc.setFont(undefined, "bold")
+    doc.text("Customer Service: 1-888-888-0888", 120, yPos + 18)
+    doc.text("Claims Service: 1-888-888-0889", 120, yPos + 22)
 
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      addText("POLICY INFORMATION", 15, yPos);
-      doc.setLineWidth(0.5);
-      doc.line(15, yPos + 1.5, pageWidth - 15, yPos + 1.5);
+    // Total Premium
+    doc.setDrawColor(0, 0, 0)
+    doc.line(17, yPos + 25, pageWidth - 17, yPos + 25)
+    doc.setFontSize(12)
+    doc.text("Total Policy Premium: $1,200.00 (EXCLUDING ANY FEES OR TAXES)", pageWidth / 2, yPos + 32, {
+      align: "center",
+    })
 
-      yPos += 8;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+    yPos += 45
 
-      const policyInfoCol1X = 15;
-      const policyInfoCol2X = 90;
-      const policyInfoCol3X = 150; // Adjusted for better spacing
+    // Policy Limits of Liability Header
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(10)
+    doc.setFont(undefined, "bold")
+    doc.text("POLICY LIMITS OF LIABILITY", 17, yPos + 5)
 
-      addText("Policy Number:", policyInfoCol1X, yPos);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 100, 0);
-      addText("WCP018024-00", policyInfoCol1X + 30, yPos);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "normal");
+    yPos += 8
 
-      addText("Policy Period:", policyInfoCol2X, yPos);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 100, 0);
-      addText("Issue Date:", policyInfoCol2X + 25, yPos);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "normal");
-      addText("08/13/2024", policyInfoCol2X + 45, yPos);
+    // Table headers
+    doc.setFillColor(240, 240, 240)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(0, 0, 0)
+    doc.text("EVENT CANCELLATION COVERAGE", 17, yPos + 5)
+    doc.text("LIMITS OF LIABILITY", 120, yPos + 5, { align: "center" })
+    doc.text("PREMIUM", 170, yPos + 5, { align: "center" })
 
-      addText("Event Date:", policyInfoCol3X, yPos);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 100, 0);
-      addText("11/01/2024", policyInfoCol3X + 20, yPos); // Corrected typo from 11/0/2024
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "normal");
+    yPos += 8
 
-      yPos += 7;
-      addText("Insurance Company:", policyInfoCol1X, yPos);
-      addText("Certain Underwriters At Lloyd's", policyInfoCol1X + 35, yPos);
+    // Table rows
+    const tableData = [
+      ["Cancellation/postponement", "$25,000", "$400"],
+      ["Additional Expense", "$5,000", "$50"],
+      ["Event Photography/Video", "$5,000", "$50"],
+      ["Event Gifts", "$5,000", "$100"],
+      ["Special Attire", "$10,000", "$50"],
+      ["Special Jewelry", "$25,000", "$150"],
+      ["Lost Deposit", "$5,000", "$100"],
+      ["Event Coverage Premium", "", "$900"],
+    ]
 
-      addText("Customer Service:", policyInfoCol2X, yPos);
-      addText("1-888-888-0888", policyInfoCol2X + 35, yPos);
+    tableData.forEach((row, index) => {
+      doc.setDrawColor(128, 128, 128)
+      doc.rect(15, yPos, pageWidth - 30, 6)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, "normal")
+      doc.text(row[0], 17, yPos + 4)
 
-      yPos += 7;
-      addText("Claims Service:", policyInfoCol2X, yPos); // Moved to align with Customer Service
-      addText("1-888-888-0889", policyInfoCol2X + 35, yPos);
+      if (row[1]) {
+        doc.setFillColor(255, 255, 0)
+        doc.rect(110, yPos + 1, 30, 4, "F")
+        doc.text(row[1], 125, yPos + 4, { align: "center" })
+      }
 
+      doc.setFillColor(255, 255, 0)
+      doc.rect(160, yPos + 1, 30, 4, "F")
+      doc.setFont(undefined, index === tableData.length - 1 ? "bold" : "normal")
+      doc.text(row[2], 175, yPos + 4, { align: "center" })
 
-      yPos += 12; // Space before total premium
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(220, 220, 220);
-      doc.rect(15, yPos - 4, pageWidth - 30, 8, "F");
-      doc.setFontSize(10);
-      doc.setTextColor(0,0,0);
-      addText("Total Policy Premium: $1,200.00 (EXCLUDING ANY FEES OR TAXES)", pageWidth / 2, yPos, { align: "center" });
-      doc.setFont("helvetica", "normal");
-      yPos += 10;
+      yPos += 6
+    })
 
-      // --- End POLICY INFORMATION Section ---
+    yPos += 10
 
-      yPos += 10;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      addText("POLICY LIMITS OF LIABILITY", 15, yPos);
-      doc.setLineWidth(0.5);
-      doc.line(15, yPos + 1.5, pageWidth - 15, yPos + 1.5);
+    // Optional Endorsements Header
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFont(undefined, "bold")
+    doc.text("OPTIONAL ENDORSEMENTS & COVERAGES", 17, yPos + 5)
 
-      yPos += 8;
+    yPos += 8
 
-      const policyLimitsHeaders = [
-        "EVENT CANCELLATION COVERAGE",
-        "LIMITS OF LIABILITY",
-        "PREMIUM",
-      ];
-      const policyLimitsData = [
-        ["Cancellation/postponement", "$25,000", "$100"],
-        ["Additional Expense", "$2,000", "$50"],
-        ["Event Photography/Video", "$5,000", "$50"],
-        ["Event Gifts", "$5,000", "$100"],
-        ["Special Attire", "$10,000", "$50"],
-        ["Special Jewelry", "$25,000", "$150"],
-        ["Lost Deposit", "$5,000", "$100"],
-      ];
+    // Endorsements table headers
+    doc.setFillColor(240, 240, 240)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(0, 0, 0)
+    doc.text("ENDORSEMENTS", 17, yPos + 5)
+    doc.text("LIMITS OF LIABILITY", 120, yPos + 5, { align: "center" })
+    doc.text("PREMIUM", 170, yPos + 5, { align: "center" })
 
-      const tableStartX = 15;
-      const tableWidth = pageWidth - 30;
-      const policyLimitsColumnWidths = [
-        tableWidth * 0.5,  // Increased width for the first column
-        tableWidth * 0.25,
-        tableWidth * 0.25, // Adjusted to sum to tableWidth
-      ];
-      const policyLimitsRowHeight = 8; // Increased for readability
+    yPos += 8
 
-      yPos = addTable(
-        tableStartX,
-        yPos,
-        policyLimitsHeaders,
-        policyLimitsData,
-        policyLimitsColumnWidths,
-        policyLimitsRowHeight
-      );
+    // Endorsements content
+    doc.setDrawColor(128, 128, 128)
+    doc.rect(15, yPos, pageWidth - 30, 25)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("Special Event Liability: Effective 12:01 AM", 17, yPos + 4)
+    doc.setFont(undefined, "normal")
+    doc.text("standard time on the Event Date: 11/01/2024", 17, yPos + 8)
+    doc.text("until 2:00 am standard time on 11/02/2024", 17, yPos + 12)
+    doc.setFont(undefined, "bold")
+    doc.text("Property Damage Liability Sublimit", 17, yPos + 16)
+    doc.text("Liquor Liability Coverage", 17, yPos + 20)
+    doc.text("Number of Guest (50-65)", 17, yPos + 24)
 
-      doc.setFillColor(220, 220, 220);
-      doc.rect(tableStartX, yPos, tableWidth, policyLimitsRowHeight, "F");
-      doc.setDrawColor(200, 200, 200);
-      doc.rect(tableStartX, yPos, tableWidth, policyLimitsRowHeight, "S");
+    // Liability limits
+    const liabilityData = ["$1,000,000 per Occurrence", "$1,000,000 General", "Aggregate", "$50,000", "$50,000"]
 
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0,0,0);
-      doc.text(
-        "Event Coverage Premium",
-        tableStartX + 2,
-        yPos + policyLimitsRowHeight / 2 + 3,
-        { align: "left", baseline: "middle" }
-      );
-      doc.text(
-        "$900",
-        tableStartX + policyLimitsColumnWidths[0] + policyLimitsColumnWidths[1] + 2, // Align with premium column start
-        yPos + policyLimitsRowHeight / 2 + 3,
-        { align: "left", baseline: "middle" }
-      );
-      doc.setFont("helvetica", "normal");
-      yPos += policyLimitsRowHeight;
+    liabilityData.forEach((item, index) => {
+      doc.setFillColor(255, 255, 0)
+      doc.rect(110, yPos + index * 4 + 1, 30, 4, "F")
+      doc.setTextColor(0, 0, 0)
+      doc.text(item, 125, yPos + index * 4 + 4, { align: "center" })
+    })
 
-      // --- End POLICY LIMITS OF LIABILITY Section ---
-      yPos += 15;
+    // Premium for endorsements
+    doc.setFillColor(255, 255, 0)
+    doc.rect(160, yPos + 10, 30, 6, "F")
+    doc.setFont(undefined, "bold")
+    doc.text("$300.00", 175, yPos + 13, { align: "center" })
 
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      addText("OPTIONAL ENDORSEMENTS & COVERAGES", 15, yPos);
-      doc.setLineWidth(0.5);
-      doc.line(15, yPos + 1.5, pageWidth - 15, yPos + 1.5);
+    yPos += 35
 
-      yPos += 8;
+    // Coverages Header
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFont(undefined, "bold")
+    doc.text("COVERAGES", 17, yPos + 5)
 
-      const endorsementsHeaders = [
-        "ENDORSEMENTS",
-        "LIMITS OF LIABILITY",
-        "PREMIUM",
-      ];
-      const endorsementsData = [
-        [
-          "Special Event Liability: Effective 12:01 AM standard time on the Event Date: 11/01/2024 until 2:00 AM standard time on 11/02/2024",
-          "$1,000,000 per Occurrence",
-          "$300.00",
-        ],
-        ["", "$1,000,000 General Aggregate", ""],
-        ["Property Damage Liability Sublimit", "$50,000", ""],
-        ["Liquor Liability Coverage", "$50,000", ""],
-        ["Number of Guest (50-65)", "", ""],
-      ];
+    yPos += 8
 
-      const endorsementsColumnWidths = [
-        tableWidth * 0.5,  // Increased width for the first column
-        tableWidth * 0.3,
-        tableWidth * 0.2,  // Adjusted to sum to tableWidth
-      ];
-      const endorsementsRowHeight = 8; // Increased for readability
+    // Extended Territory row
+    doc.setDrawColor(128, 128, 128)
+    doc.rect(15, yPos, pageWidth - 30, 6)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("Extended Territory", 17, yPos + 4)
+    doc.setFont(undefined, "normal")
+    doc.text("Not Applicable", 125, yPos + 4, { align: "center" })
+    doc.text("Included", 175, yPos + 4, { align: "center" })
 
-      yPos = addTable(
-        tableStartX,
-        yPos,
-        endorsementsHeaders,
-        endorsementsData,
-        endorsementsColumnWidths,
-        endorsementsRowHeight
-      );
+    // Footer
+    doc.setTextColor(128, 128, 128)
+    doc.setFontSize(8)
+    doc.text("AU -DEC (08-24)", 15, pageHeight - 10)
+    doc.text("1", pageWidth - 15, pageHeight - 10, { align: "right" })
 
-      // --- End OPTIONAL ENDORSEMENTS & COVERAGES Section ---
-      yPos += 15;
+    // Save the PDF
+    doc.save("Special_Event_Insurance_Declaration.pdf")
+  } catch (error) {
+    console.error("Error generating PDF:", error)
+  }
+}
 
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      addText("COVERAGES", 15, yPos);
-      doc.setLineWidth(0.5);
-      doc.line(15, yPos + 1.5, pageWidth - 15, yPos + 1.5);
-
-      yPos += 8;
-
-      const coveragesHeaders = ["COVERAGE DESCRIPTION", "STATUS", "NOTES"]; // More descriptive headers
-      const coveragesData = [
-        ["Extended Territory", "Not Applicable", "Included"]
-      ];
-
-      const coveragesColumnWidths = [
-        tableWidth * 0.4,
-        tableWidth * 0.3,
-        tableWidth * 0.3,
-      ];
-      const coveragesRowHeight = 8;
-
-      yPos = addTable(
-        tableStartX,
-        yPos,
-        coveragesHeaders,
-        coveragesData,
-        coveragesColumnWidths,
-        coveragesRowHeight,
-        [255,255,255],
-        [0,0,0],
-        [255,255,255]
-      );
-
-      // --- End COVERAGES Section ---
-
-      const footerY = pageHeight - 15;
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      addText("AU-DEC (08-24)", 15, footerY);
-      addText("Page 1 of 1", pageWidth - 15, footerY, { align: "right" }); // More standard page numbering
-      // --- End Footer Section ---
-      doc.save(`SpecialEventInsuranceDeclaration.pdf`);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      // Consider adding user-facing error feedback here
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
+// Component to trigger PDF generation
+export default function InsuranceDeclarationPDFGenerator() {
+  const handleGeneratePDF = () => {
+    generateInsuranceDeclarationPDF()
+  }
 
   return (
-    <div className="my-4 p-4 border border-gray-300 rounded-md bg-gray-50">
-      <h2 className="text-xl font-semibold text-gray-700 mb-3">
-        Insurance Declaration
-      </h2>
+    <div className="p-8">
       <button
-        onClick={generateSpecialEventInsurancePdf}
-        disabled={isGeneratingPdf}
-        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleGeneratePDF}
+        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
       >
-        {isGeneratingPdf ? "Generating PDF..." : "Download Declaration PDF"}
+        Generate Insurance Declaration PDF
       </button>
-      <p className="text-sm text-gray-600 mt-2">
-        Click the button to download your Special Event Insurance Declaration.
-      </p>
     </div>
-  );
-};
+  )
+}
 
-export default SpecialEventInsurancePDF;
+
+
+
+// ---------------------PAGE 2-------------------------------
+"use client"
+
+export async function generateInsuranceDeclarationPage2PDF() {
+  const jsPDF = (await import("jspdf")).default
+
+  try {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+
+    // Logo circle (simplified as text)
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(2)
+    doc.circle(30, 25, 12)
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text("W&F", 30, 22, { align: "center" })
+    doc.text("ROYCE", 30, 28, { align: "center" })
+
+    let yPos = 50
+
+    // Policy Forms and Endorsements Header
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(10)
+    doc.setFont(undefined, "bold")
+    doc.text("POLICY FORMS AND ENDORSEMENTS", 17, yPos + 5)
+
+    yPos += 8
+
+    // Policy Forms and Endorsements Table
+    const policyForms = [
+      ["AU - 1 (08-24)", "Special Event Insurance"],
+      ["AU - 200 (08-24)", "Special Event Liability"],
+      ["AU - 200LL (08-24)", "Special Event Liquor Liability"],
+      ["AU - 400FL (08-24)", "Special Event Liability FL Provision"],
+      ["AU - 201 (08-24)", "Additional Insured"],
+    ]
+
+    policyForms.forEach((row) => {
+      doc.setDrawColor(128, 128, 128)
+      doc.rect(15, yPos, 60, 6)
+      doc.rect(75, yPos, pageWidth - 90, 6)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, "bold")
+      doc.text(row[0], 17, yPos + 4)
+      doc.setFont(undefined, "normal")
+      doc.text(row[1], 77, yPos + 4)
+      yPos += 6
+    })
+
+    yPos += 10
+
+    // Event Information Header
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFont(undefined, "bold")
+    doc.text("EVENT INFORMATION", 17, yPos + 5)
+
+    yPos += 8
+
+    // Event Information Table Headers
+    doc.setDrawColor(128, 128, 128)
+    doc.rect(15, yPos, (pageWidth - 30) / 2, 6)
+    doc.rect(15 + (pageWidth - 30) / 2, yPos, (pageWidth - 30) / 2, 6)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("INSURED EVENT", 17, yPos + 4)
+    doc.text("HONOREE(S)", 17 + (pageWidth - 30) / 2 + 2, yPos + 4)
+
+    yPos += 6
+
+    // Event Information Table Content
+    doc.setDrawColor(128, 128, 128)
+    doc.rect(15, yPos, (pageWidth - 30) / 2, 6)
+    doc.rect(15 + (pageWidth - 30) / 2, yPos, (pageWidth - 30) / 2, 6)
+
+    // Yellow highlight for event and honorees
+    doc.setFillColor(255, 255, 0)
+    doc.rect(15 + 1, yPos + 1, (pageWidth - 30) / 2 - 2, 4, "F")
+    doc.rect(15 + (pageWidth - 30) / 2 + 1, yPos + 1, (pageWidth - 30) / 2 - 2, 4, "F")
+
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("Wedding", 17, yPos + 4)
+    doc.text("Family Members", 17 + (pageWidth - 30) / 2 + 2, yPos + 4)
+
+    yPos += 15
+
+    // Event Location(s) Header
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("EVENT LOCATION(S)", 15, yPos)
+    doc.setLineWidth(0.5)
+    doc.line(15, yPos + 1, 60, yPos + 1)
+
+    yPos += 5
+
+    // Event Location Table
+    for (let i = 1; i <= 4; i++) {
+      doc.setDrawColor(128, 128, 128)
+      doc.rect(15, yPos, 10, 6)
+      doc.rect(25, yPos, pageWidth - 40, 6)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, "bold")
+      doc.text(`${i}.`, 17, yPos + 4)
+
+      // Yellow highlight for first location
+      if (i === 1) {
+        doc.setFillColor(255, 255, 0)
+        doc.rect(26, yPos + 1, pageWidth - 42, 4, "F")
+        doc.text("123 Main St. Tampa, FL 33601", 27, yPos + 4)
+      }
+
+      yPos += 6
+    }
+
+    yPos += 10
+
+    // Additional Insured(s) Header
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, "bold")
+    doc.text("ADDITIONAL INSURED(S)", 15, yPos)
+    doc.setLineWidth(0.5)
+    doc.line(15, yPos + 1, 70, yPos + 1)
+
+    yPos += 5
+
+    // Additional Insured Table
+    for (let i = 1; i <= 4; i++) {
+      doc.setDrawColor(128, 128, 128)
+      doc.rect(15, yPos, 10, 6)
+      doc.rect(25, yPos, pageWidth - 40, 6)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, "bold")
+
+      // Yellow highlight for first number
+      if (i === 1) {
+        doc.setFillColor(255, 255, 0)
+        doc.rect(15 + 1, yPos + 1, 8, 4, "F")
+      }
+
+      doc.text(`${i}.`, 17, yPos + 4)
+      yPos += 6
+    }
+
+    yPos += 10
+
+    // Event Information Header (second occurrence)
+    doc.setFillColor(47, 79, 79)
+    doc.rect(15, yPos, pageWidth - 30, 8, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFont(undefined, "bold")
+    doc.text("EVENT INFORMATION", 17, yPos + 5)
+
+    yPos += 8
+
+    // Event Information Fees Table
+    const feeData = [
+      ["Policy Fee", "$50.00"],
+      ["Surplus Lines Taxes", "$48.00"],
+      ["Stamping Fee", "$5.00"],
+      ["Total Premium", "$1,303.00"],
+    ]
+
+    feeData.forEach((row, index) => {
+      doc.setDrawColor(128, 128, 128)
+      doc.rect(15, yPos, (pageWidth - 30) * 0.7, 6)
+      doc.rect(15 + (pageWidth - 30) * 0.7, yPos, (pageWidth - 30) * 0.3, 6)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, "bold")
+      doc.text(row[0], 17, yPos + 4)
+
+      // Yellow highlight for fee amounts
+      doc.setFillColor(255, 255, 0)
+      doc.rect(15 + (pageWidth - 30) * 0.7 + 1, yPos + 1, (pageWidth - 30) * 0.3 - 2, 4, "F")
+      doc.text(row[1], 15 + (pageWidth - 30) * 0.7 + (pageWidth - 30) * 0.3 - 5, yPos + 4, { align: "right" })
+
+      yPos += 6
+    })
+
+    // Footer
+    doc.setTextColor(128, 128, 128)
+    doc.setFontSize(8)
+    doc.text("AU -DEC (08-24)", 15, pageHeight - 10)
+    doc.text("2", pageWidth - 15, pageHeight - 10, { align: "right" })
+
+    // Save the PDF
+    doc.save("Special_Event_Insurance_Declaration_Page2.pdf")
+  } catch (error) {
+    console.error("Error generating PDF:", error)
+  }
+}
+
+// Component to trigger PDF generation
+export default function InsuranceDeclarationPage2PDFGenerator() {
+  const handleGeneratePDF = () => {
+    generateInsuranceDeclarationPage2PDF()
+  }
+
+  return (
+    <div className="p-8">
+      <button
+        onClick={handleGeneratePDF}
+        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        Generate Insurance Declaration Page 2 PDF
+      </button>
+    </div>
+  )
+}

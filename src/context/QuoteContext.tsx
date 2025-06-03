@@ -31,6 +31,8 @@ export interface QuoteState {
   honoree1LastName: string;
   honoree2FirstName: string;
   honoree2LastName: string;
+  
+  // Reception Venue (Primary venue for weddings)
   ceremonyLocationType: string;
   indoorOutdoor: string;
   venueName: string;
@@ -41,6 +43,42 @@ export interface QuoteState {
   venueState: string;
   venueZip: string;
   venueAsInsured: boolean;
+
+  // Ceremony Venue (for weddings)
+  ceremonyVenueType: string;
+  ceremonyVenueIndoorOutdoor: string;
+  ceremonyVenueName: string;
+  ceremonyVenueAddress1: string;
+  ceremonyVenueAddress2: string;
+  ceremonyVenueCountry: string;
+  ceremonyVenueCity: string;
+  ceremonyVenueState: string;
+  ceremonyVenueZip: string;
+  ceremonyVenueAsInsured: boolean;
+
+  // Rehearsal Dinner Venue (for weddings)
+  rehearsalVenueType: string;
+  rehearsalVenueIndoorOutdoor: string;
+  rehearsalVenueName: string;
+  rehearsalVenueAddress1: string;
+  rehearsalVenueAddress2: string;
+  rehearsalVenueCountry: string;
+  rehearsalVenueCity: string;
+  rehearsalVenueState: string;
+  rehearsalVenueZip: string;
+  rehearsalVenueAsInsured: boolean;
+
+  // Brunch Venue (for weddings)
+  brunchVenueType: string;
+  brunchVenueIndoorOutdoor: string;
+  brunchVenueName: string;
+  brunchVenueAddress1: string;
+  brunchVenueAddress2: string;
+  brunchVenueCountry: string;
+  brunchVenueCity: string;
+  brunchVenueState: string;
+  brunchVenueZip: string;
+  brunchVenueAsInsured: boolean;
 
   // Step 3 - Policy Holder
   firstName: string;
@@ -87,6 +125,8 @@ const initialState: QuoteState = {
   honoree1LastName: '',
   honoree2FirstName: '',
   honoree2LastName: '',
+  
+  // Reception Venue (Primary venue)
   ceremonyLocationType: '',
   indoorOutdoor: '',
   venueName: '',
@@ -97,6 +137,42 @@ const initialState: QuoteState = {
   venueState: '',
   venueZip: '',
   venueAsInsured: false,
+
+  // Ceremony Venue
+  ceremonyVenueType: '',
+  ceremonyVenueIndoorOutdoor: '',
+  ceremonyVenueName: '',
+  ceremonyVenueAddress1: '',
+  ceremonyVenueAddress2: '',
+  ceremonyVenueCountry: 'United States',
+  ceremonyVenueCity: '',
+  ceremonyVenueState: '',
+  ceremonyVenueZip: '',
+  ceremonyVenueAsInsured: false,
+
+  // Rehearsal Dinner Venue
+  rehearsalVenueType: '',
+  rehearsalVenueIndoorOutdoor: '',
+  rehearsalVenueName: '',
+  rehearsalVenueAddress1: '',
+  rehearsalVenueAddress2: '',
+  rehearsalVenueCountry: 'United States',
+  rehearsalVenueCity: '',
+  rehearsalVenueState: '',
+  rehearsalVenueZip: '',
+  rehearsalVenueAsInsured: false,
+
+  // Brunch Venue
+  brunchVenueType: '',
+  brunchVenueIndoorOutdoor: '',
+  brunchVenueName: '',
+  brunchVenueAddress1: '',
+  brunchVenueAddress2: '',
+  brunchVenueCountry: 'United States',
+  brunchVenueCity: '',
+  brunchVenueState: '',
+  brunchVenueZip: '',
+  brunchVenueAsInsured: false,
 
   // Step 3 - Policy Holder
   firstName: '',

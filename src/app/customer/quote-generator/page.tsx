@@ -179,8 +179,8 @@ export default function QuoteGenerator() {
                   type: "quote",
                   data: {
                     quoteNumber: data.quoteNumber,
-                    firstName: state.firstName || "Customer",
-                    totalPremium: state.totalPremium,
+                    firstName: "Customer",
+                    totalPremium: data.totalPremium,  // replace data with state if this doesn't work
                   },
                 }),
               });

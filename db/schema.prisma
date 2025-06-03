@@ -106,18 +106,55 @@ model Venue {
   event   Event @relation(fields: [eventId], references: [id])
   eventId Int   @unique
 
-  name     String
-  address1 String
-  address2 String?
-  country  String
-  city     String
-  state    String? @map("state_column")
-  zip      String? @map("zip_code")
+  // Reception Venue (Primary venue)
+  name           String
+  address1       String
+  address2       String?
+  country        String
+  city          String?
+  state         String? @map("state_column")
+  zip           String? @map("zip_code")
+  locationType  String?
+  indoorOutdoor String?
+  venueAsInsured Boolean?
 
-  locationType         String?
-  ceremonyLocationType String?
-  indoorOutdoor        String?
-  venueAsInsured       Boolean?
+  // Ceremony Venue
+  ceremonyVenueName           String?
+  ceremonyVenueAddress1       String?
+  ceremonyVenueAddress2       String?
+  ceremonyVenueCountry        String?
+  ceremonyVenueCity          String?
+  ceremonyVenueState         String? @map("ceremony_venue_state")
+  ceremonyVenueZip           String? @map("ceremony_venue_zip")
+  ceremonyVenueType          String?
+  ceremonyVenueIndoorOutdoor String?
+  ceremonyVenueAsInsured     Boolean?
+
+  // Rehearsal Dinner Venue
+  rehearsalVenueName           String?
+  rehearsalVenueAddress1       String?
+  rehearsalVenueAddress2       String?
+  rehearsalVenueCountry        String?
+  rehearsalVenueCity          String?
+  rehearsalVenueState         String? @map("rehearsal_venue_state")
+  rehearsalVenueZip           String? @map("rehearsal_venue_zip")
+  rehearsalVenueType          String?
+  rehearsalVenueIndoorOutdoor String?
+  rehearsalVenueAsInsured     Boolean?
+
+  // Brunch Venue
+  brunchVenueName           String?
+  brunchVenueAddress1       String?
+  brunchVenueAddress2       String?
+  brunchVenueCountry        String?
+  brunchVenueCity          String?
+  brunchVenueState         String? @map("brunch_venue_state")
+  brunchVenueZip           String? @map("brunch_venue_zip")
+  brunchVenueType          String?
+  brunchVenueIndoorOutdoor String?
+  brunchVenueAsInsured     Boolean?
+
+  @@map("venues")
 }
 
 model PolicyHolder {
